@@ -2,7 +2,7 @@
 Changelog (Pillow)
 ==================
 
-4.4.0 (unreleased)
+5.0.0 (unreleased)
 ------------------
 
 - Test: avoid random failure in test_effect_noise #2894
