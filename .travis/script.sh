@@ -6,8 +6,9 @@ coverage erase
 make clean
 make install-coverage
 
-coverage run --append  selftest.py
-coverage run --append  -m nose -vx Tests/test_*.py
+python selftest.py
+python -m pytest -vx --cov PIL --cov-report term Tests
+
 pushd /tmp/check-manifest && check-manifest --ignore ".coveragerc,.editorconfig,*.yml,*.yaml,tox.ini" && popd
 
 # Docs
