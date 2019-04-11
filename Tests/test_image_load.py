@@ -1,4 +1,4 @@
-from helper import unittest, PillowTestCase, hopper
+from .helper import PillowTestCase, hopper
 
 from PIL import Image
 
@@ -29,6 +29,9 @@ class TestImageLoad(PillowTestCase):
 
         self.assertRaises(OSError, os.fstat, fn)
 
+    def test_contextmanager_non_exclusive_fp(self):
+        with open("Tests/images/hopper.gif", "rb") as fp:
+            with Image.open(fp):
+                pass
 
-if __name__ == '__main__':
-    unittest.main()
+            self.assertFalse(fp.closed)

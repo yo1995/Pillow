@@ -4,8 +4,14 @@
 :py:mod:`ImageQt` Module
 ========================
 
-The :py:mod:`ImageQt` module contains support for creating PyQt4, PyQt5 or
-PySide QImage objects from PIL images.
+The :py:mod:`ImageQt` module contains support for creating PyQt4, PyQt5, PySide or
+PySide2 QImage objects from PIL images.
+
+Qt 4 reached end-of-life on 2015-12-19. Its Python bindings are also EOL: PyQt4 since
+2018-08-31 and PySide since 2015-10-14.
+
+Support for PyQt4 and PySide is deprecated since Pillow 6.0.0 and will be removed in a
+future version. Please upgrade to PyQt5 or PySide2.
 
 .. versionadded:: 1.1.6
 

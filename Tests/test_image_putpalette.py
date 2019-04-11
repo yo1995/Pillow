@@ -1,4 +1,4 @@
-from helper import unittest, PillowTestCase, hopper
+from .helper import PillowTestCase, hopper
 
 from PIL import ImagePalette
 
@@ -14,8 +14,10 @@ class TestImagePutPalette(PillowTestCase):
                 return im.mode, p[:10]
             return im.mode
         self.assertRaises(ValueError, palette, "1")
-        self.assertEqual(palette("L"), ("P", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
-        self.assertEqual(palette("P"), ("P", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        for mode in ["L", "LA", "P", "PA"]:
+            self.assertEqual(palette(mode),
+                             ("PA" if "A" in mode else "P",
+                              [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
         self.assertRaises(ValueError, palette, "I")
         self.assertRaises(ValueError, palette, "F")
         self.assertRaises(ValueError, palette, "RGB")
@@ -28,7 +30,3 @@ class TestImagePutPalette(PillowTestCase):
         im.putpalette(ImagePalette.random())
         im.putpalette(ImagePalette.sepia())
         im.putpalette(ImagePalette.wedge())
-
-
-if __name__ == '__main__':
-    unittest.main()

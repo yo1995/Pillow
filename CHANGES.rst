@@ -2,8 +2,416 @@
 Changelog (Pillow)
 ==================
 
-5.3.0 (unreleased)
+6.0.0 (2019-04-01)
 ------------------
+
+- Python 2.7 support will be removed in Pillow 7.0.0 #3682
+  [hugovk]
+
+- Add EXIF class #3625
+  [radarhere]
+
+- Add ImageOps exif_transpose method #3687
+  [radarhere]
+
+- Added warnings to deprecated CMSProfile attributes #3615
+  [hugovk]
+
+- Documented reading TIFF multiframe images #3720
+  [akuchling]
+
+- Improved speed of opening an MPO file #3658
+  [Glandos]
+
+- Update palette in quantize #3721
+  [radarhere]
+
+- Improvements to TIFF is_animated and n_frames #3714
+  [radarhere]
+
+- Fixed incompatible pointer type warnings #3754
+  [radarhere]
+
+- Improvements to PA and LA conversion and palette operations #3728
+  [radarhere]
+
+- Consistent DPI rounding #3709
+  [radarhere]
+
+- Change size of MPO image to match frame #3588
+  [radarhere]
+
+- Read Photoshop resolution data #3701
+  [radarhere]
+
+- Ensure image is mutable before saving #3724
+  [radarhere]
+
+- Correct remap_palette documentation #3740
+  [radarhere]
+
+- Promote P images to PA in putalpha #3726
+  [radarhere]
+
+- Allow RGB and RGBA values for new P images #3719
+  [radarhere]
+
+- Fixed TIFF bug when seeking backwards and then forwards #3713
+  [radarhere]
+
+- Cache EXIF information #3498
+  [Glandos]
+
+- Added transparency for all PNG greyscale modes #3744
+  [radarhere]
+
+- Fix deprecation warnings in Python 3.8 #3749
+  [radarhere]
+
+- Fixed GIF bug when rewinding to a non-zero frame #3716
+  [radarhere]
+
+- Only close original fp in __del__ and __exit__ if original fp is exclusive #3683
+  [radarhere]
+
+- Fix BytesWarning in Tests/test_numpy.py #3725
+  [jdufresne]
+
+- Add missing MIME types and extensions #3520
+  [pirate486743186]
+
+- Add I;16 PNG save #3566
+  [radarhere]
+
+- Add support for BMP RGBA bitfield compression #3705
+  [radarhere]
+
+- Added ability to set language for text rendering #3693
+  [iwsfutcmd]
+
+- Only close exclusive fp on Image __exit__ #3698
+  [radarhere]
+
+- Changed EPS subprocess stdout from devnull to None #3635
+  [radarhere]
+
+- Add reading old-JPEG compressed TIFFs #3489
+  [kkopachev]
+
+- Add EXIF support for PNG #3674
+  [radarhere]
+
+- Add option to set dither param on quantize #3699
+  [glasnt]
+
+- Add reading of DDS uncompressed RGB data #3673
+  [radarhere]
+
+- Correct length of Tiff BYTE tags #3672
+  [radarhere]
+
+- Add DIB saving and loading through Image open #3691
+  [radarhere]
+
+- Removed deprecated VERSION #3624
+  [hugovk]
+
+- Fix 'BytesWarning: Comparison between bytes and string' in PdfDict #3580
+  [jdufresne]
+
+- Do not resize in Image.thumbnail if already the destination size #3632
+  [radarhere]
+
+- Replace .seek() magic numbers with io.SEEK_* constants #3572
+  [jdufresne]
+
+- Make ContainerIO.isatty() return a bool, not int #3568
+  [jdufresne]
+
+- Add support to all transpose operations for I;16 modes #3563, #3741
+  [radarhere]
+
+- Deprecate support for PyQt4 and PySide #3655
+  [hugovk, radarhere]
+
+- Add TIFF compression codecs: LZMA, Zstd, WebP #3555
+  [cgohlke]
+
+- Fixed pickling of iTXt class with protocol > 1 #3537
+  [radarhere]
+
+- _util.isPath returns True for pathlib.Path objects #3616
+  [wbadart]
+
+- Remove unnecessary unittest.main() boilerplate from test files #3631
+  [jdufresne]
+
+- Exif: Seek to IFD offset #3584
+  [radarhere]
+
+- Deprecate PIL.*ImagePlugin.__version__ attributes #3628
+  [jdufresne]
+
+- Docs: Add note about ImageDraw operations that exceed image bounds #3620
+  [radarhere]
+
+- Allow for unknown PNG chunks after image data #3558
+  [radarhere]
+
+- Changed EPS subprocess stdin from devnull to None #3611
+  [radarhere]
+
+- Fix possible integer overflow #3609
+  [cgohlke]
+
+- Catch BaseException for resource cleanup handlers #3574
+  [jdufresne]
+
+- Improve pytest configuration to allow specific tests as CLI args #3579
+  [jdufresne]
+
+- Drop support for Python 3.4 #3596
+  [hugovk]
+
+- Remove deprecated PIL.OleFileIO #3598
+  [hugovk]
+
+- Remove deprecated ImageOps undocumented functions #3599
+  [hugovk]
+
+- Depends: Update libwebp to 1.0.2 #3602
+  [radarhere]
+
+- Detect MIME types #3525
+  [radarhere]
+
+5.4.1 (2019-01-06)
+------------------
+
+- File closing: Only close __fp if not fp #3540
+  [radarhere]
+
+- Fix build for Termux #3529
+  [pslacerda]
+
+- PNG: Detect MIME types #3525
+  [radarhere]
+
+- PNG: Handle IDAT chunks after image end #3532
+  [radarhere]
+
+5.4.0 (2019-01-01)
+------------------
+
+- Docs: Improved ImageChops documentation #3522
+  [radarhere]
+
+- Allow RGB and RGBA values for P image putpixel #3519
+  [radarhere]
+
+- Add APNG extension to PNG plugin #3501
+  [pirate486743186, radarhere]
+
+- Lookup ld.so.cache instead of hardcoding search paths #3245
+  [pslacerda]
+
+- Added custom string TIFF tags #3513
+  [radarhere]
+
+- Improve setup.py configuration #3395
+  [diorcety]
+
+- Read textual chunks located after IDAT chunks for PNG #3506
+  [radarhere]
+
+- Performance: Don't try to hash value if enum is empty #3503
+  [Glandos]
+
+- Added custom int and float TIFF tags #3350
+  [radarhere]
+
+- Fixes for issues reported by static code analysis #3393
+  [frenzymadness]
+
+- GIF: Wait until mode is normalized to copy im.info into encoderinfo #3187
+  [radarhere]
+
+- Docs: Add page of deprecations and removals #3486
+  [hugovk]
+
+- Travis CI: Upgrade PyPy from 5.8.0 to 6.0 #3488
+  [hugovk]
+
+- Travis CI: Allow lint job to fail #3467
+  [hugovk]
+
+- Resolve __fp when closing and deleting #3261
+  [radarhere]
+
+- Close exclusive fp before discarding #3461
+  [radarhere]
+
+- Updated open files documentation #3490
+  [radarhere]
+
+- Added libjpeg_turbo to check_feature #3493
+  [radarhere]
+
+- Change color table index background to tuple when saving as WebP #3471
+  [radarhere]
+
+- Allow arbitrary number of comment extension subblocks #3479
+  [radarhere]
+
+- Ensure previous FLI frame is loaded before seeking to the next #3478
+  [radarhere]
+
+- ImageShow improvements #3450
+  [radarhere]
+
+- Depends: Update libimagequant to 2.12.2 #3442, libtiff to 4.0.10 #3458, libwebp to 1.0.1 #3468, Tk Tcl to 8.6.9 #3465
+  [radarhere]
+
+- Check quality_layers type #3464
+  [radarhere]
+
+- Add context manager, __del__ and close methods to TarIO #3455
+  [radarhere]
+
+- Test: Do not play sound when running screencapture command #3454
+  [radarhere]
+
+- Close exclusive fp on open exception #3456
+  [radarhere]
+
+- Only close existing fp in WebP if fp is exclusive #3418
+  [radarhere]
+
+- Docs: Re-add the downloads badge #3443
+  [hugovk]
+
+- Added negative index to PixelAccess #3406
+  [Nazime]
+
+- Change tuple background to global color table index when saving as GIF #3385
+  [radarhere]
+
+- Test: Improved ImageGrab tests #3424
+  [radarhere]
+
+- Flake8 fixes #3422, #3440
+  [radarhere, hugovk]
+
+- Only ask for YCbCr->RGB libtiff conversion for jpeg-compressed tiffs #3417
+  [kkopachev]
+
+- Optimise ImageOps.fit by combining resize and crop #3409
+  [homm]
+
+5.3.0 (2018-10-01)
+------------------
+
+- Changed Image size property to be read-only by default #3203
+  [radarhere]
+
+- Add warnings if image file identification fails due to lack of WebP support #3169
+  [radarhere, hugovk]
+
+- Hide the Ghostscript progress dialog popup on Windows #3378
+  [hugovk]
+
+- Adding support to reading tiled and YcbCr jpeg tiffs through libtiff #3227
+  [kkopachev]
+
+- Fixed None as TIFF compression argument #3310
+  [radarhere]
+
+- Changed GIF seek to remove previous info items #3324
+  [radarhere]
+
+- Improved PDF document info #3274
+  [radarhere]
+
+- Add line width parameter to rectangle and ellipse-based shapes #3094
+  [hugovk, radarhere]
+
+- Fixed decompression bomb check in _crop #3313
+  [dinkolubina, hugovk]
+
+- Added support to ImageDraw.floodfill for non-RGB colors #3377
+  [radarhere]
+
+- Tests: Avoid catching unexpected exceptions in tests #2203
+  [jdufresne]
+
+- Use TextIOWrapper.detach() instead of NoCloseStream #2214
+  [jdufresne]
+
+- Added transparency to matrix conversion #3205
+  [radarhere]
+
+- Added ImageOps pad method #3364
+  [radarhere]
+
+- Give correct extrema for I;16 format images #3359
+  [bz2]
+
+- Added PySide2 #3279
+  [radarhere]
+
+- Corrected TIFF tags #3369
+  [radarhere]
+
+- CI: Install CFFI and pycparser without any PYTHONOPTIMIZE #3374
+  [hugovk]
+
+- Read/Save RGB webp as RGB (instead of RGBX) #3298
+  [kkopachev]
+
+- ImageDraw: Add line joints #3250
+  [radarhere]
+
+- Improved performance of ImageDraw floodfill method #3294
+  [yo1995]
+
+- Fix builds with --parallel #3272
+  [hsoft]
+
+- Add more raw Tiff modes (RGBaX, RGBaXX, RGBAX, RGBAXX) #3335
+  [homm]
+
+- Close existing WebP fp before setting new fp #3341
+  [radarhere]
+
+- Add orientation, compression and id_section as TGA save keyword arguments #3327
+  [radarhere]
+
+- Convert int values of RATIONAL TIFF tags to floats #3338
+  [radarhere, wiredfool]
+
+- Fix code for PYTHONOPTIMIZE #3233
+  [hugovk]
+
+- Changed ImageFilter.Kernel to subclass ImageFilter.BuiltinFilter, instead of the other way around #3273
+  [radarhere]
+
+- Remove unused draw.draw_line, draw.draw_point and font.getabc methods #3232
+  [hugovk]
+
+- Tests: Added ImageFilter tests #3295
+  [radarhere]
+
+- Tests: Added ImageChops tests #3230
+  [hugovk, radarhere]
+
+- AppVeyor: Download lib if not present in pillow-depends #3316
+  [radarhere]
+
+- Travis CI: Add Python 3.7 and Xenial #3234
+  [hugovk]
+
+- Docs: Added documentation for NumPy conversion #3301
+  [radarhere]
 
 - Depends: Update libimagequant to 2.12.1 #3281
   [radarhere]
@@ -17,7 +425,7 @@ Changelog (Pillow)
 - Skip outline if the draw operation fills with the same colour #2922
   [radarhere]
 
-- Flake8 fixes #3173
+- Flake8 fixes #3173, #3380
   [radarhere]
 
 - Avoid deprecated 'U' mode when opening files #2187
@@ -3772,7 +4180,7 @@ Pre-fork
     (1.1.3 final released)
 
     + Made setup.py look for old versions of zlib.  For some back-
-      ground, see: http://www.gzip.org/zlib/advisory-2002-03-11.txt
+      ground, see: https://zlib.net/advisory-2002-03-11.txt
 
     (1.1.3c2 released)
 

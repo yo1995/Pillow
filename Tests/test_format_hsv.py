@@ -1,4 +1,4 @@
-from helper import unittest, PillowTestCase, hopper
+from .helper import PillowTestCase, hopper
 
 from PIL import Image
 from PIL._util import py3
@@ -13,15 +13,11 @@ class TestFormatHSV(PillowTestCase):
         return float(i)/255.0
 
     def str_to_float(self, i):
-
         return float(ord(i))/255.0
-
-    def to_int(self, f):
-        return int(f*255.0)
 
     def tuple_to_ints(self, tp):
         x, y, z = tp
-        return (int(x*255.0), int(y*255.0), int(z*255.0))
+        return int(x*255.0), int(y*255.0), int(z*255.0)
 
     def test_sanity(self):
         Image.new('HSV', (100, 100))
@@ -47,10 +43,6 @@ class TestFormatHSV(PillowTestCase):
 
         img = Image.merge('RGB', (r, g, b))
 
-        # print(("%d, %d -> "% (int(1.75*px),int(.25*px))) + \
-        #        "(%s, %s, %s)"%img.getpixel((1.75*px, .25*px)))
-        # print(("%d, %d -> "% (int(.75*px),int(.25*px))) + \
-        #        "(%s, %s, %s)"%img.getpixel((.75*px, .25*px)))
         return img
 
     def to_xxx_colorsys(self, im, func, mode):
@@ -95,15 +87,6 @@ class TestFormatHSV(PillowTestCase):
         im = src.convert('HSV')
         comparable = self.to_hsv_colorsys(src)
 
-        # print(im.getpixel((448, 64)))
-        # print(comparable.getpixel((448, 64)))
-
-        # print(im.split()[0].histogram())
-        # print(comparable.split()[0].histogram())
-
-        # im.split()[0].show()
-        # comparable.split()[0].show()
-
         self.assert_image_similar(im.getchannel(0), comparable.getchannel(0),
                                   1, "Hue conversion is wrong")
         self.assert_image_similar(im.getchannel(1), comparable.getchannel(1),
@@ -111,15 +94,8 @@ class TestFormatHSV(PillowTestCase):
         self.assert_image_similar(im.getchannel(2), comparable.getchannel(2),
                                   1, "Value conversion is wrong")
 
-        # print(im.getpixel((192, 64)))
-
         comparable = src
         im = im.convert('RGB')
-
-        # im.split()[0].show()
-        # comparable.split()[0].show()
-        # print(im.getpixel((192, 64)))
-        # print(comparable.getpixel((192, 64)))
 
         self.assert_image_similar(im.getchannel(0), comparable.getchannel(0),
                                   3, "R conversion is wrong")
@@ -131,12 +107,6 @@ class TestFormatHSV(PillowTestCase):
     def test_convert(self):
         im = hopper('RGB').convert('HSV')
         comparable = self.to_hsv_colorsys(hopper('RGB'))
-
-#        print([ord(x) for x  in im.split()[0].tobytes()[:80]])
-#        print([ord(x) for x  in comparable.split()[0].tobytes()[:80]])
-
-#        print(im.split()[0].histogram())
-#        print(comparable.split()[0].histogram())
 
         self.assert_image_similar(im.getchannel(0), comparable.getchannel(0),
                                   1, "Hue conversion is wrong")
@@ -150,12 +120,6 @@ class TestFormatHSV(PillowTestCase):
         converted = comparable.convert('RGB')
         comparable = self.to_rgb_colorsys(comparable)
 
-        # print(converted.split()[1].histogram())
-        # print(target.split()[1].histogram())
-
-        # print([ord(x) for x  in target.split()[1].tobytes()[:80]])
-        # print([ord(x) for x  in converted.split()[1].tobytes()[:80]])
-
         self.assert_image_similar(converted.getchannel(0),
                                   comparable.getchannel(0),
                                   3, "R conversion is wrong")
@@ -165,7 +129,3 @@ class TestFormatHSV(PillowTestCase):
         self.assert_image_similar(converted.getchannel(2),
                                   comparable.getchannel(2),
                                   3, "B conversion is wrong")
-
-
-if __name__ == '__main__':
-    unittest.main()

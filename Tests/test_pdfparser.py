@@ -1,8 +1,9 @@
-from helper import unittest, PillowTestCase
+from .helper import PillowTestCase
 
 from PIL.PdfParser import IndirectObjectDef, IndirectReference, PdfBinary, \
                           PdfDict, PdfFormatError, PdfName, PdfParser, \
                           PdfStream, decode_text, encode_text, pdf_repr
+import time
 
 
 class TestPdfParser(PillowTestCase):
@@ -26,7 +27,9 @@ class TestPdfParser(PillowTestCase):
     def test_parsing(self):
         self.assertEqual(PdfParser.interpret_name(b"Name#23Hash"),
                          b"Name#Hash")
-        self.assertEqual(PdfParser.interpret_name(b"Name#23Hash", as_text=True), "Name#Hash")
+        self.assertEqual(PdfParser.interpret_name(
+                             b"Name#23Hash", as_text=True
+                         ), "Name#Hash")
         self.assertEqual(PdfParser.get_value(b"1 2 R ", 0),
                          (IndirectReference(1, 2), 5))
         self.assertEqual(PdfParser.get_value(b"true[", 0), (True, 4))
@@ -72,10 +75,25 @@ class TestPdfParser(PillowTestCase):
         self.assertIsInstance(a, list)
         self.assertEqual(len(a), 4)
         self.assertEqual(a[0], PdfName("Name"))
-        s = PdfParser.get_value(b"<</Name (value) /Length 5>>\nstream\nabcde\nendstream<<...", 0)[0]
+        s = PdfParser.get_value(
+            b"<</Name (value) /Length 5>>\nstream\nabcde\nendstream<<...", 0
+        )[0]
         self.assertIsInstance(s, PdfStream)
         self.assertEqual(s.dictionary.Name, "value")
         self.assertEqual(s.decode(), b"abcde")
+        for name in ["CreationDate", "ModDate"]:
+            for date, value in {
+                b"20180729214124": "20180729214124",
+                b"D:20180729214124": "20180729214124",
+                b"D:2018072921": "20180729210000",
+                b"D:20180729214124Z": "20180729214124",
+                b"D:20180729214124+08'00'": "20180729134124",
+                b"D:20180729214124-05'00'": "20180730024124"
+            }.items():
+                d = PdfParser.get_value(
+                    b"<</"+name.encode()+b" ("+date+b")>>", 0)[0]
+                self.assertEqual(
+                    time.strftime("%Y%m%d%H%M%S", getattr(d, name)), value)
 
     def test_pdf_repr(self):
         self.assertEqual(bytes(IndirectReference(1, 2)), b"1 2 R")
@@ -104,7 +122,3 @@ class TestPdfParser(PillowTestCase):
         self.assertEqual(pdf_repr([123, True, {"a": PdfName(b"b")}]),
                          b"[ 123 true <<\n/a /b\n>> ]")
         self.assertEqual(pdf_repr(PdfBinary(b"\x90\x1F\xA0")), b"<901FA0>")
-
-
-if __name__ == '__main__':
-    unittest.main()

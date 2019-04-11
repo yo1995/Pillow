@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from helper import unittest, PillowTestCase
+from .helper import unittest, PillowTestCase
 from PIL import Image, ImageDraw, ImageFont, features
 
 
@@ -131,8 +131,15 @@ class TestImagecomplextext(PillowTestCase):
 
         self.assert_image_similar(im, target_img, .5)
 
+    def test_language(self):
+        ttf = ImageFont.truetype(FONT_PATH, FONT_SIZE)
 
-if __name__ == '__main__':
-    unittest.main()
+        im = Image.new(mode='RGB', size=(300, 100))
+        draw = ImageDraw.Draw(im)
+        draw.text((0, 0), 'абвг', font=ttf, fill=500,
+                  language='sr')
 
-# End of file
+        target = 'Tests/images/test_language.png'
+        target_img = Image.open(target)
+
+        self.assert_image_similar(im, target_img, .5)

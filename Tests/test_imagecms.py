@@ -1,4 +1,4 @@
-from helper import unittest, PillowTestCase, hopper
+from .helper import PillowTestCase, hopper
 import datetime
 
 from PIL import Image, ImageMode
@@ -10,7 +10,7 @@ try:
     from PIL import ImageCms
     from PIL.ImageCms import ImageCmsProfile
     ImageCms.core.profile_open
-except ImportError as v:
+except ImportError:
     # Skipped via setUp()
     pass
 
@@ -175,11 +175,11 @@ class TestImageCms(PillowTestCase):
 
     def test_unsupported_color_space(self):
         self.assertRaises(ImageCms.PyCMSError,
-            ImageCms.createProfile, "unsupported")
+                          ImageCms.createProfile, "unsupported")
 
     def test_invalid_color_temperature(self):
         self.assertRaises(ImageCms.PyCMSError,
-            ImageCms.createProfile, "LAB", "invalid")
+                          ImageCms.createProfile, "LAB", "invalid")
 
     def test_simple_lab(self):
         i = Image.new('RGB', (10, 10), (128, 128, 128))
@@ -294,7 +294,14 @@ class TestImageCms(PillowTestCase):
             p.blue_primary,
             ((0.14306641366715667, 0.06060790921083026, 0.7140960805782015),
              (0.15588475410450106, 0.06603820408959558, 0.06060790921083026)))
-        assert_truncated_tuple_equal(p.chromatic_adaptation, (((1.04791259765625, 0.0229339599609375, -0.050201416015625), (0.02960205078125, 0.9904632568359375, -0.0170745849609375), (-0.009246826171875, 0.0150604248046875, 0.7517852783203125)), ((1.0267159024652783, 0.022470062342089134, 0.0229339599609375), (0.02951378324103937, 0.9875098886387147, 0.9904632568359375), (-0.012205438066465256, 0.01987915407854985, 0.0150604248046875))))
+        assert_truncated_tuple_equal(
+            p.chromatic_adaptation,
+            (((1.04791259765625, 0.0229339599609375, -0.050201416015625),
+              (0.02960205078125, 0.9904632568359375, -0.0170745849609375),
+              (-0.009246826171875, 0.0150604248046875, 0.7517852783203125)),
+             ((1.0267159024652783, 0.022470062342089134, 0.0229339599609375),
+              (0.02951378324103937, 0.9875098886387147, 0.9904632568359375),
+              (-0.012205438066465256, 0.01987915407854985, 0.0150604248046875))))
         self.assertIsNone(p.chromaticity)
         self.assertEqual(p.clut, {
             0: (False, False, True),
@@ -302,7 +309,7 @@ class TestImageCms(PillowTestCase):
             2: (False, False, True),
             3: (False, False, True)
         })
-        self.assertEqual(p.color_space, 'RGB')
+
         self.assertIsNone(p.colorant_table)
         self.assertIsNone(p.colorant_table_out)
         self.assertIsNone(p.colorimetric_intent)
@@ -354,16 +361,9 @@ class TestImageCms(PillowTestCase):
             (5000.722328847392,))
         self.assertEqual(p.model,
                          'IEC 61966-2-1 Default RGB Colour Space - sRGB')
-        self.assertEqual(p.pcs, 'XYZ')
+
         self.assertIsNone(p.perceptual_rendering_intent_gamut)
-        self.assertEqual(p.product_copyright,
-                         'Copyright International Color Consortium, 2009')
-        self.assertEqual(p.product_desc, 'sRGB IEC61966-2-1 black scaled')
-        self.assertEqual(p.product_description,
-                         'sRGB IEC61966-2-1 black scaled')
-        self.assertEqual(p.product_manufacturer, '')
-        self.assertEqual(
-            p.product_model, 'IEC 61966-2-1 Default RGB Colour Space - sRGB')
+
         self.assertEqual(
             p.profile_description, 'sRGB IEC61966-2-1 black scaled')
         self.assertEqual(
@@ -386,6 +386,40 @@ class TestImageCms(PillowTestCase):
                          'Reference Viewing Condition in IEC 61966-2-1')
         self.assertEqual(p.xcolor_space, 'RGB ')
 
+    def test_deprecations(self):
+        self.skip_missing()
+        o = ImageCms.getOpenProfile(SRGB)
+        p = o.profile
+
+        def helper_deprecated(attr, expected):
+            result = self.assert_warning(DeprecationWarning, getattr, p, attr)
+            self.assertEqual(result, expected)
+
+        # p.color_space
+        helper_deprecated("color_space", "RGB")
+
+        # p.pcs
+        helper_deprecated("pcs", "XYZ")
+
+        # p.product_copyright
+        helper_deprecated(
+            "product_copyright", "Copyright International Color Consortium, 2009"
+        )
+
+        # p.product_desc
+        helper_deprecated("product_desc", "sRGB IEC61966-2-1 black scaled")
+
+        # p.product_description
+        helper_deprecated("product_description", "sRGB IEC61966-2-1 black scaled")
+
+        # p.product_manufacturer
+        helper_deprecated("product_manufacturer", "")
+
+        # p.product_model
+        helper_deprecated(
+            "product_model", "IEC 61966-2-1 Default RGB Colour Space - sRGB"
+        )
+
     def test_profile_typesafety(self):
         """ Profile init type safety
 
@@ -402,10 +436,10 @@ class TestImageCms(PillowTestCase):
         def create_test_image():
             # set up test image with something interesting in the tested aux
             # channel.
-            nine_grid_deltas = [
+            nine_grid_deltas = [  # noqa: E128
                 (-1, -1), (-1, 0), (-1, 1),
-                ( 0, -1), ( 0, 0), ( 0, 1),
-                ( 1, -1), ( 1, 0), ( 1, 1),
+                 (0, -1),  (0, 0),  (0, 1),
+                 (1, -1),  (1, 0),  (1, 1),
             ]
             chans = []
             bands = ImageMode.getmode(mode).bands
@@ -421,7 +455,11 @@ class TestImageCms(PillowTestCase):
                 )
                 channel_data = Image.new(channel_type, channel_pattern.size)
                 for delta in nine_grid_deltas:
-                    channel_data.paste(channel_pattern, tuple(paste_offset[c] + delta[c]*channel_pattern.size[c] for c in range(2)))
+                    channel_data.paste(
+                        channel_pattern,
+                        tuple(paste_offset[c] + delta[c] * channel_pattern.size[c]
+                              for c in range(2)),
+                    )
                 chans.append(channel_data)
             return Image.merge(mode, chans)
 
@@ -446,20 +484,20 @@ class TestImageCms(PillowTestCase):
         self.assert_image_equal(source_image_aux, result_image_aux)
 
     def test_preserve_auxiliary_channels_rgba(self):
-        self.assert_aux_channel_preserved(mode='RGBA',
-            transform_in_place=False, preserved_channel='A')
+        self.assert_aux_channel_preserved(
+            mode='RGBA', transform_in_place=False, preserved_channel='A')
 
     def test_preserve_auxiliary_channels_rgba_in_place(self):
-        self.assert_aux_channel_preserved(mode='RGBA',
-            transform_in_place=True, preserved_channel='A')
+        self.assert_aux_channel_preserved(
+            mode='RGBA', transform_in_place=True, preserved_channel='A')
 
     def test_preserve_auxiliary_channels_rgbx(self):
-        self.assert_aux_channel_preserved(mode='RGBX',
-            transform_in_place=False, preserved_channel='X')
+        self.assert_aux_channel_preserved(
+            mode='RGBX', transform_in_place=False, preserved_channel='X')
 
     def test_preserve_auxiliary_channels_rgbx_in_place(self):
-        self.assert_aux_channel_preserved(mode='RGBX',
-            transform_in_place=True, preserved_channel='X')
+        self.assert_aux_channel_preserved(
+            mode='RGBX', transform_in_place=True, preserved_channel='X')
 
     def test_auxiliary_channels_isolated(self):
         # test data in aux channels does not affect non-aux channels
@@ -503,7 +541,3 @@ class TestImageCms(PillowTestCase):
 
                     self.assert_image_equal(test_image.convert(dst_format[2]),
                                             reference_image)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,6 +1,6 @@
 import os.path
 
-from helper import PillowTestCase, hopper, unittest
+from .helper import PillowTestCase, hopper
 from PIL import Image, ImageColor, ImageDraw
 
 BLACK = (0, 0, 0)
@@ -46,7 +46,7 @@ class TestImageDraw(PillowTestCase):
         im = Image.open("Tests/images/chi.gif")
 
         draw = ImageDraw.Draw(im)
-        draw.line(((0, 0)), fill=(0, 0, 0))
+        draw.line((0, 0), fill=(0, 0, 0))
 
     def test_mode_mismatch(self):
         im = hopper("RGB").copy()
@@ -102,6 +102,30 @@ class TestImageDraw(PillowTestCase):
         self.assert_image_similar(
             im, Image.open("Tests/images/imagedraw_arc_no_loops.png"), 1)
 
+    def test_arc_width(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_arc_width.png"
+
+        # Act
+        draw.arc(BBOX1, 10, 260, width=5)
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 1)
+
+    def test_arc_width_fill(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_arc_width_fill.png"
+
+        # Act
+        draw.arc(BBOX1, 10, 260, fill="yellow", width=5)
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 1)
+
     def test_bitmap(self):
         # Arrange
         small = Image.open("Tests/images/pil123rgba.png").resize((50, 50))
@@ -136,6 +160,30 @@ class TestImageDraw(PillowTestCase):
         for mode in ["RGB", "L"]:
             self.helper_chord(mode, BBOX2, 0, 180)
             self.helper_chord(mode, BBOX2, 0.5, 180.4)
+
+    def test_chord_width(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_chord_width.png"
+
+        # Act
+        draw.chord(BBOX1, 10, 260, outline="yellow", width=5)
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 1)
+
+    def test_chord_width_fill(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_chord_width_fill.png"
+
+        # Act
+        draw.chord(BBOX1, 10, 260, fill="red", outline="yellow", width=5)
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 1)
 
     def helper_ellipse(self, mode, bbox):
         # Arrange
@@ -178,6 +226,30 @@ class TestImageDraw(PillowTestCase):
             draw = ImageDraw.Draw(im)
             draw.ellipse(bbox, fill="green", outline="blue")
             self.assert_image_equal(im, im.transpose(Image.FLIP_LEFT_RIGHT))
+
+    def test_ellipse_width(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_ellipse_width.png"
+
+        # Act
+        draw.ellipse(BBOX1, outline="blue", width=5)
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 1)
+
+    def test_ellipse_width_fill(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_ellipse_width_fill.png"
+
+        # Act
+        draw.ellipse(BBOX1, fill="green", outline="blue", width=5)
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 1)
 
     def helper_line(self, points):
         # Arrange
@@ -258,6 +330,30 @@ class TestImageDraw(PillowTestCase):
     def test_pieslice2(self):
         self.helper_pieslice(BBOX2, -90, 45)
         self.helper_pieslice(BBOX2, -90.5, 45.4)
+
+    def test_pieslice_width(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_pieslice_width.png"
+
+        # Act
+        draw.pieslice(BBOX1, 10, 260, outline="blue", width=5)
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 1)
+
+    def test_pieslice_width_fill(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_pieslice_width_fill.png"
+
+        # Act
+        draw.pieslice(BBOX1, 10, 260, fill="white", outline="blue", width=5)
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 1)
 
     def helper_point(self, points):
         # Arrange
@@ -343,20 +439,51 @@ class TestImageDraw(PillowTestCase):
         # Assert
         self.assert_image_similar(im, Image.open(expected), 1)
 
-    def test_floodfill(self):
+    def test_rectangle_width(self):
         # Arrange
         im = Image.new("RGB", (W, H))
         draw = ImageDraw.Draw(im)
-        draw.rectangle(BBOX2, outline="yellow", fill="green")
-        centre_point = (int(W/2), int(H/2))
-        red = ImageColor.getrgb("red")
-        im_floodfill = Image.open("Tests/images/imagedraw_floodfill.png")
+        expected = "Tests/images/imagedraw_rectangle_width.png"
 
         # Act
-        ImageDraw.floodfill(im, centre_point, red)
+        draw.rectangle(BBOX1, outline="green", width=5)
 
         # Assert
-        self.assert_image_equal(im, im_floodfill)
+        self.assert_image_equal(im, Image.open(expected))
+
+    def test_rectangle_width_fill(self):
+        # Arrange
+        im = Image.new("RGB", (W, H))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_rectangle_width_fill.png"
+
+        # Act
+        draw.rectangle(BBOX1, fill="blue", outline="green", width=5)
+
+        # Assert
+        self.assert_image_equal(im, Image.open(expected))
+
+    def test_floodfill(self):
+        red = ImageColor.getrgb("red")
+
+        for mode, value in [
+            ("L", 1),
+            ("RGBA", (255, 0, 0, 0)),
+            ("RGB", red)
+        ]:
+            # Arrange
+            im = Image.new(mode, (W, H))
+            draw = ImageDraw.Draw(im)
+            draw.rectangle(BBOX2, outline="yellow", fill="green")
+            centre_point = (int(W/2), int(H/2))
+
+            # Act
+            ImageDraw.floodfill(im, centre_point, value)
+
+            # Assert
+            expected = "Tests/images/imagedraw_floodfill_"+mode+".png"
+            im_floodfill = Image.open(expected)
+            self.assert_image_equal(im, im_floodfill)
 
         # Test that using the same colour does not change the image
         ImageDraw.floodfill(im, centre_point, red)
@@ -365,6 +492,11 @@ class TestImageDraw(PillowTestCase):
         # Test that filling outside the image does not change the image
         ImageDraw.floodfill(im, (W, H), red)
         self.assert_image_equal(im, im_floodfill)
+
+        # Test filling at the edge of an image
+        im = Image.new("RGB", (1, 1))
+        ImageDraw.floodfill(im, (0, 0), red)
+        self.assert_image_equal(im, Image.new("RGB", (1, 1), red))
 
     def test_floodfill_border(self):
         # floodfill() is experimental
@@ -411,7 +543,7 @@ class TestImageDraw(PillowTestCase):
             for y in range(0, size[1]):
                 if (x + y) % 2 == 0:
                     img.putpixel((x, y), background2)
-        return (img, ImageDraw.Draw(img))
+        return img, ImageDraw.Draw(img)
 
     def test_square(self):
         expected = Image.open(os.path.join(IMAGES_PATH, 'square.png'))
@@ -563,6 +695,20 @@ class TestImageDraw(PillowTestCase):
         # Assert
         self.assert_image_similar(im, Image.open(expected), 1)
 
+    def test_line_joint(self):
+        im = Image.new("RGB", (500, 325))
+        draw = ImageDraw.Draw(im)
+        expected = "Tests/images/imagedraw_line_joint_curve.png"
+
+        # Act
+        xy = [(400, 280), (380, 280), (450, 280), (440, 120), (350, 200),
+              (310, 280), (300, 280), (250, 280), (250, 200), (150, 200),
+              (150, 260), (50, 200), (150, 50), (250, 100)]
+        draw.line(xy, GRAY, 50, "curve")
+
+        # Assert
+        self.assert_image_similar(im, Image.open(expected), 3)
+
     def test_textsize_empty_string(self):
         # https://github.com/python-pillow/Pillow/issues/2783
         # Arrange
@@ -596,12 +742,12 @@ class TestImageDraw(PillowTestCase):
                 ["red", "#f00"]
             ]:
                 for operation, args in {
-                    'chord':[BBOX1, 0, 180],
-                    'ellipse':[BBOX1],
-                    'shape':[s],
-                    'pieslice':[BBOX1, -90, 45],
-                    'polygon':[[(18, 30), (85, 30), (60, 72)]],
-                    'rectangle':[BBOX1]
+                    'chord': [BBOX1, 0, 180],
+                    'ellipse': [BBOX1],
+                    'shape': [s],
+                    'pieslice': [BBOX1, -90, 45],
+                    'polygon': [[(18, 30), (85, 30), (60, 72)]],
+                    'rectangle': [BBOX1]
                 }.items():
                     # Arrange
                     im = Image.new(mode, (W, H))
@@ -616,7 +762,3 @@ class TestImageDraw(PillowTestCase):
                     expected = ("Tests/images/imagedraw_outline"
                                 "_{}_{}.png".format(operation, mode))
                     self.assert_image_similar(im, Image.open(expected), 1)
-
-
-if __name__ == '__main__':
-    unittest.main()

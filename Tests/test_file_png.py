@@ -1,10 +1,16 @@
-from helper import unittest, PillowTestCase, PillowLeakTestCase, hopper
+from .helper import unittest, PillowTestCase, PillowLeakTestCase, hopper
 from PIL import Image, ImageFile, PngImagePlugin
 from PIL._util import py3
 
 from io import BytesIO
 import zlib
 import sys
+
+try:
+    from PIL import _webp
+    HAVE_WEBP = True
+except ImportError:
+    HAVE_WEBP = False
 
 codecs = dir(Image.core)
 
@@ -80,21 +86,15 @@ class TestFilePng(PillowTestCase):
         self.assertEqual(im.mode, "RGB")
         self.assertEqual(im.size, (128, 128))
         self.assertEqual(im.format, "PNG")
+        self.assertEqual(im.get_format_mimetype(), 'image/png')
 
-        hopper("1").save(test_file)
-        im = Image.open(test_file)
-
-        hopper("L").save(test_file)
-        im = Image.open(test_file)
-
-        hopper("P").save(test_file)
-        im = Image.open(test_file)
-
-        hopper("RGB").save(test_file)
-        im = Image.open(test_file)
-
-        hopper("I").save(test_file)
-        im = Image.open(test_file)
+        for mode in ["1", "L", "P", "RGB", "I", "I;16"]:
+            im = hopper(mode)
+            im.save(test_file)
+            reloaded = Image.open(test_file)
+            if mode == "I;16":
+                reloaded = reloaded.convert(mode)
+            self.assert_image_equal(reloaded, im)
 
     def test_invalid_file(self):
         invalid_file = "Tests/images/flower.jpg"
@@ -291,30 +291,32 @@ class TestFilePng(PillowTestCase):
         self.assert_image(im, "RGBA", (10, 10))
         self.assertEqual(im.getcolors(), [(100, (0, 0, 0, 0))])
 
-    def test_save_l_transparency(self):
-        # There are 559 transparent pixels in l_trns.png.
-        num_transparent = 559
+    def test_save_greyscale_transparency(self):
+        for mode, num_transparent in {
+            "1": 1994,
+            "L": 559,
+            "I": 559,
+        }.items():
+            in_file = "Tests/images/"+mode.lower()+"_trns.png"
+            im = Image.open(in_file)
+            self.assertEqual(im.mode, mode)
+            self.assertEqual(im.info["transparency"], 255)
 
-        in_file = "Tests/images/l_trns.png"
-        im = Image.open(in_file)
-        self.assertEqual(im.mode, "L")
-        self.assertEqual(im.info["transparency"], 255)
+            im_rgba = im.convert('RGBA')
+            self.assertEqual(
+                im_rgba.getchannel("A").getcolors()[0][0], num_transparent)
 
-        im_rgba = im.convert('RGBA')
-        self.assertEqual(
-            im_rgba.getchannel("A").getcolors()[0][0], num_transparent)
+            test_file = self.tempfile("temp.png")
+            im.save(test_file)
 
-        test_file = self.tempfile("temp.png")
-        im.save(test_file)
+            test_im = Image.open(test_file)
+            self.assertEqual(test_im.mode, mode)
+            self.assertEqual(test_im.info["transparency"], 255)
+            self.assert_image_equal(im, test_im)
 
-        test_im = Image.open(test_file)
-        self.assertEqual(test_im.mode, "L")
-        self.assertEqual(test_im.info["transparency"], 255)
-        self.assert_image_equal(im, test_im)
-
-        test_im_rgba = test_im.convert('RGBA')
-        self.assertEqual(
-            test_im_rgba.getchannel('A').getcolors()[0][0], num_transparent)
+            test_im_rgba = test_im.convert('RGBA')
+            self.assertEqual(
+                test_im_rgba.getchannel('A').getcolors()[0][0], num_transparent)
 
     def test_save_rgb_single_transparency(self):
         in_file = "Tests/images/caption_6_33_22.png"
@@ -327,7 +329,9 @@ class TestFilePng(PillowTestCase):
         # Check open/load/verify exception (@PIL150)
 
         im = Image.open(TEST_PNG_FILE)
-        im.verify()
+
+        # Assert that there is no unclosed file warning
+        self.assert_warning(None, im.verify)
 
         im = Image.open(TEST_PNG_FILE)
         im.load()
@@ -384,6 +388,24 @@ class TestFilePng(PillowTestCase):
 
         im = roundtrip(im, dpi=(100, 100))
         self.assertEqual(im.info["dpi"], (100, 100))
+
+    def test_load_dpi_rounding(self):
+        # Round up
+        im = Image.open(TEST_PNG_FILE)
+        self.assertEqual(im.info["dpi"], (96, 96))
+
+        # Round down
+        im = Image.open("Tests/images/icc_profile_none.png")
+        self.assertEqual(im.info["dpi"], (72, 72))
+
+    def test_save_dpi_rounding(self):
+        im = Image.open(TEST_PNG_FILE)
+
+        im = roundtrip(im, dpi=(72.2, 72.2))
+        self.assertEqual(im.info["dpi"], (72, 72))
+
+        im = roundtrip(im, dpi=(72.8, 72.8))
+        self.assertEqual(im.info["dpi"], (73, 73))
 
     def test_roundtrip_text(self):
         # Check text roundtripping
@@ -555,6 +577,76 @@ class TestFilePng(PillowTestCase):
         chunks = PngImagePlugin.getchunks(im)
         self.assertEqual(len(chunks), 3)
 
+    def test_textual_chunks_after_idat(self):
+        im = Image.open("Tests/images/hopper.png")
+        self.assertIn('comment', im.text.keys())
+        for k, v in {
+            'date:create': '2014-09-04T09:37:08+03:00',
+            'date:modify': '2014-09-04T09:37:08+03:00',
+        }.items():
+            self.assertEqual(im.text[k], v)
+
+        # Raises a SyntaxError in load_end
+        im = Image.open("Tests/images/broken_data_stream.png")
+        with self.assertRaises(IOError):
+            self.assertIsInstance(im.text, dict)
+
+        # Raises a UnicodeDecodeError in load_end
+        im = Image.open("Tests/images/truncated_image.png")
+        # The file is truncated
+        self.assertRaises(IOError, lambda: im.text)
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
+        self.assertIsInstance(im.text, dict)
+        ImageFile.LOAD_TRUNCATED_IMAGES = False
+
+        # Raises an EOFError in load_end
+        im = Image.open("Tests/images/hopper_idat_after_image_end.png")
+        self.assertEqual(im.text, {'TXT': 'VALUE', 'ZIP': 'VALUE'})
+
+    def test_exif(self):
+        im = Image.open("Tests/images/exif.png")
+        exif = im._getexif()
+        self.assertEqual(exif[274], 1)
+
+    def test_exif_save(self):
+        im = Image.open("Tests/images/exif.png")
+
+        test_file = self.tempfile("temp.png")
+        im.save(test_file)
+
+        reloaded = Image.open(test_file)
+        exif = reloaded._getexif()
+        self.assertEqual(exif[274], 1)
+
+    def test_exif_from_jpg(self):
+        im = Image.open("Tests/images/pil_sample_rgb.jpg")
+
+        test_file = self.tempfile("temp.png")
+        im.save(test_file)
+
+        reloaded = Image.open(test_file)
+        exif = reloaded._getexif()
+        self.assertEqual(exif[305], "Adobe Photoshop CS Macintosh")
+
+    def test_exif_argument(self):
+        im = Image.open(TEST_PNG_FILE)
+
+        test_file = self.tempfile("temp.png")
+        im.save(test_file, exif=b"exifstring")
+
+        reloaded = Image.open(test_file)
+        self.assertEqual(reloaded.info["exif"], b"Exif\x00\x00exifstring")
+
+    @unittest.skipUnless(HAVE_WEBP and _webp.HAVE_WEBPANIM,
+                         "WebP support not installed with animation")
+    def test_apng(self):
+        im = Image.open("Tests/images/iss634.apng")
+        self.assertEqual(im.get_format_mimetype(), 'image/apng')
+
+        # This also tests reading unknown PNG chunks (fcTL and fdAT) in load_end
+        expected = Image.open("Tests/images/iss634.webp")
+        self.assert_image_similar(im, expected, 0.23)
+
 
 @unittest.skipIf(sys.platform.startswith('win32'), "requires Unix or macOS")
 class TestTruncatedPngPLeaks(PillowLeakTestCase):
@@ -581,7 +673,3 @@ class TestTruncatedPngPLeaks(PillowLeakTestCase):
             self._test_leak(core)
         finally:
             ImageFile.LOAD_TRUNCATED_IMAGES = False
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,4 +1,4 @@
-from helper import unittest, PillowTestCase, hopper
+from .helper import PillowTestCase, hopper
 
 from PIL import Image
 
@@ -12,7 +12,8 @@ class TestImageConvert(PillowTestCase):
             self.assertEqual(out.mode, mode)
             self.assertEqual(out.size, im.size)
 
-        modes = "1", "L", "I", "F", "RGB", "RGBA", "RGBX", "CMYK", "YCbCr"
+        modes = ("1", "L", "LA", "P", "PA", "I", "F",
+                 "RGB", "RGBA", "RGBX", "CMYK", "YCbCr")
 
         for mode in modes:
             im = hopper(mode)
@@ -88,7 +89,7 @@ class TestImageConvert(PillowTestCase):
         # Assert
         self.assertNotIn('transparency', im_rgba.info)
         # https://github.com/python-pillow/Pillow/issues/2702
-        self.assertEqual(im_rgba.palette, None)
+        self.assertIsNone(im_rgba.palette)
 
     def test_trns_l(self):
         im = hopper('L')
@@ -187,6 +188,7 @@ class TestImageConvert(PillowTestCase):
         def matrix_convert(mode):
             # Arrange
             im = hopper('RGB')
+            im.info['transparency'] = (255, 0, 0)
             matrix = (
                 0.412453, 0.357580, 0.180423, 0,
                 0.212671, 0.715160, 0.072169, 0,
@@ -203,9 +205,12 @@ class TestImageConvert(PillowTestCase):
             target = Image.open('Tests/images/hopper-XYZ.png')
             if converted_im.mode == 'RGB':
                 self.assert_image_similar(converted_im, target, 3)
+                self.assertEqual(converted_im.info['transparency'],
+                                 (105, 54, 4))
             else:
                 self.assert_image_similar(converted_im,
                                           target.getchannel(0), 1)
+                self.assertEqual(converted_im.info['transparency'], 105)
 
         matrix_convert('RGB')
         matrix_convert('L')
@@ -226,7 +231,3 @@ class TestImageConvert(PillowTestCase):
         # Assert
         # No change
         self.assert_image_equal(converted_im, im)
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -798,6 +798,48 @@ unpackRGBa(UINT8* _out, const UINT8* in, int pixels)
 }
 
 static void
+unpackRGBaskip1(UINT8* _out, const UINT8* in, int pixels)
+{
+    int i;
+    UINT32* out = (UINT32*) _out;
+    /* premultiplied RGBA */
+    for (i = 0; i < pixels; i++) {
+        int a = in[3];
+        if ( ! a) {
+            out[i] = 0;
+        } else if (a == 255) {
+            out[i] = MAKE_UINT32(in[0], in[1], in[2], a);
+        } else {
+            out[i] = MAKE_UINT32(CLIP8(in[0] * 255 / a),
+                                 CLIP8(in[1] * 255 / a),
+                                 CLIP8(in[2] * 255 / a), a);
+        }
+        in += 5;
+    }
+}
+
+static void
+unpackRGBaskip2(UINT8* _out, const UINT8* in, int pixels)
+{
+    int i;
+    UINT32* out = (UINT32*) _out;
+    /* premultiplied RGBA */
+    for (i = 0; i < pixels; i++) {
+        int a = in[3];
+        if ( ! a) {
+            out[i] = 0;
+        } else if (a == 255) {
+            out[i] = MAKE_UINT32(in[0], in[1], in[2], a);
+        } else {
+            out[i] = MAKE_UINT32(CLIP8(in[0] * 255 / a),
+                                 CLIP8(in[1] * 255 / a),
+                                 CLIP8(in[2] * 255 / a), a);
+        }
+        in += 6;
+    }
+}
+
+static void
 unpackBGRa(UINT8* _out, const UINT8* in, int pixels)
 {
     int i;
@@ -1289,6 +1331,7 @@ static struct {
     {"RGB",     "BGR;5",        16,     ImagingUnpackBGR15}, /* compat */
     {"RGB",     "RGBX",         32,     copy4},
     {"RGB",     "RGBX;L",       32,     unpackRGBAL},
+    {"RGB",     "RGBA;L",       32,     unpackRGBAL},
     {"RGB",     "BGRX",         32,     ImagingUnpackBGRX},
     {"RGB",     "XRGB",         24,     ImagingUnpackXRGB},
     {"RGB",     "XBGR",         32,     ImagingUnpackXBGR},
@@ -1301,7 +1344,11 @@ static struct {
     {"RGBA",    "LA",           16,     unpackRGBALA},
     {"RGBA",    "LA;16B",       32,     unpackRGBALA16B},
     {"RGBA",    "RGBA",         32,     copy4},
+    {"RGBA",    "RGBAX",        40,     copy4skip1},
+    {"RGBA",    "RGBAXX",       48,     copy4skip2},
     {"RGBA",    "RGBa",         32,     unpackRGBa},
+    {"RGBA",    "RGBaX",        40,     unpackRGBaskip1},
+    {"RGBA",    "RGBaXX",       48,     unpackRGBaskip2},
     {"RGBA",    "RGBa;16L",     64,     unpackRGBa16L},
     {"RGBA",    "RGBa;16B",     64,     unpackRGBa16B},
     {"RGBA",    "BGRa",         32,     unpackBGRa},
@@ -1383,8 +1430,6 @@ static struct {
     {"YCbCr",   "YCbCr",        24,     ImagingUnpackRGB},
     {"YCbCr",   "YCbCr;L",      24,     unpackRGBL},
     {"YCbCr",   "YCbCrX",       32,     copy4},
-    {"YCbCr",   "YCbCrXX",      40,     copy4skip1},
-    {"YCbCr",   "YCbCrXXX",     48,     copy4skip2},
     {"YCbCr",   "YCbCrK",       32,     copy4},
 
     /* LAB Color */

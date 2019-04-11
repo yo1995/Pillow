@@ -1,5 +1,5 @@
-from helper import unittest, PillowTestCase, hopper
-from helper import djpeg_available, cjpeg_available
+from .helper import unittest, PillowTestCase, hopper
+from .helper import djpeg_available, cjpeg_available
 
 from io import BytesIO
 import os
@@ -141,11 +141,9 @@ class TestFileJpeg(PillowTestCase):
         im = Image.open('Tests/images/icc_profile_big.jpg')
         f = self.tempfile("temp.jpg")
         icc_profile = im.info["icc_profile"]
-        try:
-            im.save(f, format='JPEG', progressive=True, quality=95,
-                    icc_profile=icc_profile, optimize=True)
-        except IOError:
-            self.fail("Failed saving image with icc larger than image size")
+        # Should not raise IOError for image with icc larger than image size.
+        im.save(f, format='JPEG', progressive=True, quality=95,
+                icc_profile=icc_profile, optimize=True)
 
     def test_optimize(self):
         im1 = self.roundtrip(hopper())
@@ -526,6 +524,27 @@ class TestFileJpeg(PillowTestCase):
         reloaded.load()
         self.assertEqual(im.info['dpi'], reloaded.info['dpi'])
 
+    def test_load_dpi_rounding(self):
+        # Round up
+        im = Image.open('Tests/images/iptc_roundUp.jpg')
+        self.assertEqual(im.info["dpi"], (44, 44))
+
+        # Round down
+        im = Image.open('Tests/images/iptc_roundDown.jpg')
+        self.assertEqual(im.info["dpi"], (2, 2))
+
+    def test_save_dpi_rounding(self):
+        outfile = self.tempfile("temp.jpg")
+        im = Image.open('Tests/images/hopper.jpg')
+
+        im.save(outfile, dpi=(72.2, 72.2))
+        reloaded = Image.open(outfile)
+        self.assertEqual(reloaded.info["dpi"], (72, 72))
+
+        im.save(outfile, dpi=(72.8, 72.8))
+        reloaded = Image.open(outfile)
+        self.assertEqual(reloaded.info["dpi"], (73, 73))
+
     def test_dpi_tuple_from_exif(self):
         # Arrange
         # This Photoshop CC 2017 image has DPI in EXIF not metadata
@@ -583,6 +602,24 @@ class TestFileJpeg(PillowTestCase):
         # OSError for unidentified image.
         self.assertEqual(im.info.get("dpi"), (72, 72))
 
+    def test_ifd_offset_exif(self):
+        # Arrange
+        # This image has been manually hexedited to have an IFD offset of 10,
+        # in contrast to normal 8
+        im = Image.open("Tests/images/exif-ifd-offset.jpg")
+
+        # Act / Assert
+        self.assertEqual(im._getexif()[306], '2017:03:13 23:03:09')
+
+    def test_photoshop(self):
+        im = Image.open("Tests/images/photoshop-200dpi.jpg")
+        self.assertEqual(im.info["photoshop"][0x03ed], {
+            'XResolution': 200.0,
+            'DisplayedUnitsX': 1,
+            'YResolution': 200.0,
+            'DisplayedUnitsY': 1,
+        })
+
 
 @unittest.skipUnless(sys.platform.startswith('win32'), "Windows only")
 class TestFileCloseW32(PillowTestCase):
@@ -604,7 +641,3 @@ class TestFileCloseW32(PillowTestCase):
         self.assertTrue(fp.closed)
         # this should not fail, as load should have closed the file.
         os.remove(tmpfile)
-
-
-if __name__ == '__main__':
-    unittest.main()

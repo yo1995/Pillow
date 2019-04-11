@@ -1,8 +1,6 @@
-from helper import unittest, PillowTestCase
+from .helper import PillowTestCase
 
 from PIL import GdImageFile
-
-import io
 
 TEST_GD_FILE = "Tests/images/hopper.gd"
 
@@ -22,7 +20,3 @@ class TestFileGd(PillowTestCase):
         invalid_file = "Tests/images/flower.jpg"
 
         self.assertRaises(IOError, GdImageFile.open, invalid_file)
-
-
-if __name__ == '__main__':
-    unittest.main()

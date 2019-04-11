@@ -22,9 +22,11 @@ exclude .coveragerc
 exclude .codecov.yml
 exclude .editorconfig
 exclude .landscape.yaml
-exclude .travis
-exclude .travis/*
+exclude .readthedocs.yml
+exclude azure-pipelines.yml
 exclude tox.ini
 global-exclude .git*
 global-exclude *.pyc
 global-exclude *.so
+prune .azure-pipelines
+prune .travis

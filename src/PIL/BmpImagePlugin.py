@@ -27,8 +27,9 @@
 from . import Image, ImageFile, ImagePalette
 from ._binary import i8, i16le as i16, i32le as i32, \
                      o8, o16le as o16, o32le as o32
-import math
 
+# __version__ is deprecated and will be removed in a future version. Use
+# PIL.__version__ instead.
 __version__ = "0.7"
 
 #
@@ -50,16 +51,21 @@ def _accept(prefix):
     return prefix[:2] == b"BM"
 
 
-# ==============================================================================
+def _dib_accept(prefix):
+    return i32(prefix[:4]) in [12, 40, 64, 108, 124]
+
+
+# =============================================================================
 # Image plugin for the Windows BMP format.
-# ==============================================================================
+# =============================================================================
 class BmpImageFile(ImageFile.ImageFile):
     """ Image plugin for the Windows Bitmap format (BMP) """
 
-    # -------------------------------------------------------------- Description
+    # ------------------------------------------------------------- Description
     format_description = "Windows Bitmap"
     format = "BMP"
-    # --------------------------------------------------- BMP Compression values
+
+    # -------------------------------------------------- BMP Compression values
     COMPRESSIONS = {
         'RAW': 0,
         'RLE8': 1,
@@ -79,12 +85,14 @@ class BmpImageFile(ImageFile.ImageFile):
         # read bmp header size @offset 14 (this is part of the header size)
         file_info['header_size'] = i32(read(4))
         file_info['direction'] = -1
-        # --------------------- If requested, read header at a specific position
+
+        # -------------------- If requested, read header at a specific position
         # read the rest of the bmp header, without its size
         header_data = ImageFile._safe_read(self.fp,
                                            file_info['header_size'] - 4)
-        # --------------------------------------------------- IBM OS/2 Bitmap v1
-        # ------ This format has different offsets because of width/height types
+
+        # -------------------------------------------------- IBM OS/2 Bitmap v1
+        # ----- This format has different offsets because of width/height types
         if file_info['header_size'] == 12:
             file_info['width'] = i16(header_data[0:2])
             file_info['height'] = i16(header_data[2:4])
@@ -92,73 +100,84 @@ class BmpImageFile(ImageFile.ImageFile):
             file_info['bits'] = i16(header_data[6:8])
             file_info['compression'] = self.RAW
             file_info['palette_padding'] = 3
-        # ---------------------------------------------- Windows Bitmap v2 to v5
-        elif file_info['header_size'] in (40, 64, 108, 124):  # v3, OS/2 v2, v4, v5
-            if file_info['header_size'] >= 40:  # v3 and OS/2
-                file_info['y_flip'] = i8(header_data[7]) == 0xff
-                file_info['direction'] = 1 if file_info['y_flip'] else -1
-                file_info['width'] = i32(header_data[0:4])
-                file_info['height'] = (i32(header_data[4:8])
-                                       if not file_info['y_flip']
-                                       else 2**32 - i32(header_data[4:8]))
-                file_info['planes'] = i16(header_data[8:10])
-                file_info['bits'] = i16(header_data[10:12])
-                file_info['compression'] = i32(header_data[12:16])
-                # byte size of pixel data
-                file_info['data_size'] = i32(header_data[16:20])
-                file_info['pixels_per_meter'] = (i32(header_data[20:24]),
-                                                 i32(header_data[24:28]))
-                file_info['colors'] = i32(header_data[28:32])
-                file_info['palette_padding'] = 4
-                self.info["dpi"] = tuple(
-                    map(lambda x: int(math.ceil(x / 39.3701)),
-                        file_info['pixels_per_meter']))
-                if file_info['compression'] == self.BITFIELDS:
-                    if len(header_data) >= 52:
-                        for idx, mask in enumerate(['r_mask',
-                                                    'g_mask',
-                                                    'b_mask',
-                                                    'a_mask']):
-                            file_info[mask] = i32(header_data[36+idx*4:40+idx*4])
-                    else:
-                        # 40 byte headers only have the three components in the
-                        # bitfields masks,
-                        # ref: https://msdn.microsoft.com/en-us/library/windows/desktop/dd183376(v=vs.85).aspx
-                        # See also https://github.com/python-pillow/Pillow/issues/1293
-                        # There is a 4th component in the RGBQuad, in the alpha
-                        # location, but it is listed as a reserved component,
-                        # and it is not generally an alpha channel
-                        file_info['a_mask'] = 0x0
-                        for mask in ['r_mask', 'g_mask', 'b_mask']:
-                            file_info[mask] = i32(read(4))
-                    file_info['rgb_mask'] = (file_info['r_mask'],
-                                             file_info['g_mask'],
-                                             file_info['b_mask'])
-                    file_info['rgba_mask'] = (file_info['r_mask'],
-                                              file_info['g_mask'],
-                                              file_info['b_mask'],
-                                              file_info['a_mask'])
+
+        # --------------------------------------------- Windows Bitmap v2 to v5
+        # v3, OS/2 v2, v4, v5
+        elif file_info['header_size'] in (40, 64, 108, 124):
+            file_info['y_flip'] = i8(header_data[7]) == 0xff
+            file_info['direction'] = 1 if file_info['y_flip'] else -1
+            file_info['width'] = i32(header_data[0:4])
+            file_info['height'] = (i32(header_data[4:8])
+                                   if not file_info['y_flip']
+                                   else 2**32 - i32(header_data[4:8]))
+            file_info['planes'] = i16(header_data[8:10])
+            file_info['bits'] = i16(header_data[10:12])
+            file_info['compression'] = i32(header_data[12:16])
+            # byte size of pixel data
+            file_info['data_size'] = i32(header_data[16:20])
+            file_info['pixels_per_meter'] = (i32(header_data[20:24]),
+                                             i32(header_data[24:28]))
+            file_info['colors'] = i32(header_data[28:32])
+            file_info['palette_padding'] = 4
+            self.info["dpi"] = tuple(
+                int(x / 39.3701 + 0.5) for x in file_info['pixels_per_meter'])
+            if file_info['compression'] == self.BITFIELDS:
+                if len(header_data) >= 52:
+                    for idx, mask in enumerate(['r_mask',
+                                                'g_mask',
+                                                'b_mask',
+                                                'a_mask']):
+                        file_info[mask] = i32(
+                            header_data[36 + idx * 4:40 + idx * 4]
+                        )
+                else:
+                    # 40 byte headers only have the three components in the
+                    # bitfields masks, ref:
+                    # https://msdn.microsoft.com/en-us/library/windows/desktop/dd183376(v=vs.85).aspx
+                    # See also
+                    # https://github.com/python-pillow/Pillow/issues/1293
+                    # There is a 4th component in the RGBQuad, in the alpha
+                    # location, but it is listed as a reserved component,
+                    # and it is not generally an alpha channel
+                    file_info['a_mask'] = 0x0
+                    for mask in ['r_mask', 'g_mask', 'b_mask']:
+                        file_info[mask] = i32(read(4))
+                file_info['rgb_mask'] = (file_info['r_mask'],
+                                         file_info['g_mask'],
+                                         file_info['b_mask'])
+                file_info['rgba_mask'] = (file_info['r_mask'],
+                                          file_info['g_mask'],
+                                          file_info['b_mask'],
+                                          file_info['a_mask'])
         else:
             raise IOError("Unsupported BMP header type (%d)" %
                           file_info['header_size'])
+
         # ------------------ Special case : header is reported 40, which
         # ---------------------- is shorter than real size for bpp >= 16
-        self.size = file_info['width'], file_info['height']
-        # -------- If color count was not found in the header, compute from bits
-        file_info['colors'] = file_info['colors'] if file_info.get('colors', 0) else (1 << file_info['bits'])
-        # -------------------------------- Check abnormal values for DOS attacks
+        self._size = file_info['width'], file_info['height']
+
+        # ------- If color count was not found in the header, compute from bits
+        file_info["colors"] = (file_info["colors"]
+                               if file_info.get("colors", 0)
+                               else (1 << file_info["bits"]))
+
+        # ------------------------------- Check abnormal values for DOS attacks
         if file_info['width'] * file_info['height'] > 2**31:
             raise IOError("Unsupported BMP Size: (%dx%d)" % self.size)
-        # ----------------------- Check bit depth for unusual unsupported values
+
+        # ---------------------- Check bit depth for unusual unsupported values
         self.mode, raw_mode = BIT2MODE.get(file_info['bits'], (None, None))
         if self.mode is None:
             raise IOError("Unsupported BMP pixel depth (%d)"
                           % file_info['bits'])
-        # ----------------- Process BMP with Bitfields compression (not palette)
+
+        # ---------------- Process BMP with Bitfields compression (not palette)
         if file_info['compression'] == self.BITFIELDS:
             SUPPORTED = {
                 32: [(0xff0000, 0xff00, 0xff, 0x0),
                      (0xff0000, 0xff00, 0xff, 0xff000000),
+                     (0xff, 0xff00, 0xff0000, 0xff000000),
                      (0x0, 0x0, 0x0, 0x0),
                      (0xff000000, 0xff0000, 0xff00, 0x0)],
                 24: [(0xff0000, 0xff00, 0xff)],
@@ -167,6 +186,7 @@ class BmpImageFile(ImageFile.ImageFile):
             MASK_MODES = {
                 (32, (0xff0000, 0xff00, 0xff, 0x0)): "BGRX",
                 (32, (0xff000000, 0xff0000, 0xff00, 0x0)): "XBGR",
+                (32, (0xff, 0xff00, 0xff0000, 0xff000000)): "RGBA",
                 (32, (0xff0000, 0xff00, 0xff, 0xff000000)): "BGRA",
                 (32, (0x0, 0x0, 0x0, 0x0)): "BGRA",
                 (24, (0xff0000, 0xff00, 0xff)): "BGR",
@@ -176,8 +196,10 @@ class BmpImageFile(ImageFile.ImageFile):
             if file_info['bits'] in SUPPORTED:
                 if file_info['bits'] == 32 and \
                    file_info['rgba_mask'] in SUPPORTED[file_info['bits']]:
-                    raw_mode = MASK_MODES[(file_info['bits'], file_info['rgba_mask'])]
-                    self.mode = "RGBA" if raw_mode in ("BGRA",) else self.mode
+                    raw_mode = MASK_MODES[
+                        (file_info["bits"], file_info["rgba_mask"])
+                    ]
+                    self.mode = "RGBA" if "A" in raw_mode else self.mode
                 elif (file_info['bits'] in (24, 16) and
                       file_info['rgb_mask'] in SUPPORTED[file_info['bits']]):
                     raw_mode = MASK_MODES[
@@ -193,9 +215,11 @@ class BmpImageFile(ImageFile.ImageFile):
         else:
             raise IOError("Unsupported BMP compression (%d)" %
                           file_info['compression'])
-        # ---------------- Once the header is processed, process the palette/LUT
+
+        # --------------- Once the header is processed, process the palette/LUT
         if self.mode == "P":  # Paletted for 1, 4 and 8 bit images
-            # ----------------------------------------------------- 1-bit images
+
+            # ---------------------------------------------------- 1-bit images
             if not (0 < file_info['colors'] <= 65536):
                 raise IOError("Unsupported BMP Palette size (%d)" %
                               file_info['colors'])
@@ -205,12 +229,14 @@ class BmpImageFile(ImageFile.ImageFile):
                 greyscale = True
                 indices = (0, 255) if file_info['colors'] == 2 else \
                     list(range(file_info['colors']))
-                # ------------------ Check if greyscale and ignore palette if so
+
+                # ----------------- Check if greyscale and ignore palette if so
                 for ind, val in enumerate(indices):
                     rgb = palette[ind*padding:ind*padding + 3]
                     if rgb != o8(val) * 3:
                         greyscale = False
-                # -------- If all colors are grey, white or black, ditch palette
+
+                # ------- If all colors are grey, white or black, ditch palette
                 if greyscale:
                     self.mode = "1" if file_info['colors'] == 2 else "L"
                     raw_mode = self.mode
@@ -219,7 +245,7 @@ class BmpImageFile(ImageFile.ImageFile):
                     self.palette = ImagePalette.raw(
                         "BGRX" if padding == 4 else "BGR", palette)
 
-        # ----------------------------- Finally set the tile data for the plugin
+        # ---------------------------- Finally set the tile data for the plugin
         self.info['compression'] = file_info['compression']
         self.tile = [
             ('raw',
@@ -243,9 +269,9 @@ class BmpImageFile(ImageFile.ImageFile):
         self._bitmap(offset=offset)
 
 
-# ==============================================================================
+# =============================================================================
 # Image plugin for the DIB format (BMP alias)
-# ==============================================================================
+# =============================================================================
 class DibImageFile(BmpImageFile):
 
     format = "DIB"
@@ -268,7 +294,11 @@ SAVE = {
 }
 
 
-def _save(im, fp, filename):
+def _dib_save(im, fp, filename):
+    _save(im, fp, filename, False)
+
+
+def _save(im, fp, filename, bitmap_header=True):
     try:
         rawmode, bits, colors = SAVE[im.mode]
     except KeyError:
@@ -279,18 +309,19 @@ def _save(im, fp, filename):
     dpi = info.get("dpi", (96, 96))
 
     # 1 meter == 39.3701 inches
-    ppm = tuple(map(lambda x: int(x * 39.3701), dpi))
+    ppm = tuple(map(lambda x: int(x * 39.3701 + 0.5), dpi))
 
     stride = ((im.size[0]*bits+7)//8+3) & (~3)
     header = 40  # or 64 for OS/2 version 2
-    offset = 14 + header + colors * 4
     image = stride * im.size[1]
 
     # bitmap header
-    fp.write(b"BM" +                      # file type (magic)
-             o32(offset+image) +          # file size
-             o32(0) +                     # reserved
-             o32(offset))                 # image data offset
+    if bitmap_header:
+        offset = 14 + header + colors * 4
+        fp.write(b"BM" +                      # file type (magic)
+                 o32(offset+image) +          # file size
+                 o32(0) +                     # reserved
+                 o32(offset))                 # image data offset
 
     # bitmap info header
     fp.write(o32(header) +                # info header size
@@ -329,3 +360,10 @@ Image.register_save(BmpImageFile.format, _save)
 Image.register_extension(BmpImageFile.format, ".bmp")
 
 Image.register_mime(BmpImageFile.format, "image/bmp")
+
+Image.register_open(DibImageFile.format, DibImageFile, _dib_accept)
+Image.register_save(DibImageFile.format, _dib_save)
+
+Image.register_extension(DibImageFile.format, ".dib")
+
+Image.register_mime(DibImageFile.format, "image/bmp")

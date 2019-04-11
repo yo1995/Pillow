@@ -1,7 +1,13 @@
-from helper import unittest, PillowTestCase, hopper
+from .helper import PillowTestCase, hopper
 
-from PIL import ImageOps
 from PIL import Image
+from PIL import ImageOps
+
+try:
+    from PIL import _webp
+    HAVE_WEBP = True
+except ImportError:
+    HAVE_WEBP = False
 
 
 class TestImageOps(PillowTestCase):
@@ -23,6 +29,9 @@ class TestImageOps(PillowTestCase):
 
         ImageOps.colorize(hopper("L"), (0, 0, 0), (255, 255, 255))
         ImageOps.colorize(hopper("L"), "black", "white")
+
+        ImageOps.pad(hopper("L"), (128, 128))
+        ImageOps.pad(hopper("RGB"), (128, 128))
 
         ImageOps.crop(hopper("L"), 1)
         ImageOps.crop(hopper("RGB"), 1)
@@ -59,6 +68,9 @@ class TestImageOps(PillowTestCase):
         ImageOps.solarize(hopper("L"))
         ImageOps.solarize(hopper("RGB"))
 
+        ImageOps.exif_transpose(hopper("L"))
+        ImageOps.exif_transpose(hopper("RGB"))
+
     def test_1pxfit(self):
         # Division by zero in equalize if image is 1 pixel high
         newimg = ImageOps.fit(hopper("RGB").resize((1, 1)), (35, 35))
@@ -69,6 +81,26 @@ class TestImageOps(PillowTestCase):
 
         newimg = ImageOps.fit(hopper("RGB").resize((100, 1)), (35, 35))
         self.assertEqual(newimg.size, (35, 35))
+
+    def test_pad(self):
+        # Same ratio
+        im = hopper()
+        new_size = (im.width * 2, im.height * 2)
+        new_im = ImageOps.pad(im, new_size)
+        self.assertEqual(new_im.size, new_size)
+
+        for label, color, new_size in [
+            ("h", None, (im.width * 4, im.height * 2)),
+            ("v", "#f00", (im.width * 2, im.height * 4))
+        ]:
+            for i, centering in enumerate([(0, 0), (0.5, 0.5), (1, 1)]):
+                new_im = ImageOps.pad(im, new_size,
+                                      color=color, centering=centering)
+                self.assertEqual(new_im.size, new_size)
+
+                target = Image.open(
+                    "Tests/images/imageops_pad_"+label+"_"+str(i)+".jpg")
+                self.assert_image_similar(new_im, target, 6)
 
     def test_pil163(self):
         # Division by zero in equalize if < 255 pixels in image (@PIL163)
@@ -196,6 +228,35 @@ class TestImageOps(PillowTestCase):
                                        threshold=1,
                                        msg='white test pixel incorrect')
 
+    def test_exif_transpose(self):
+        exts = [".jpg"]
+        if HAVE_WEBP and _webp.HAVE_WEBPANIM:
+            exts.append(".webp")
+        for ext in exts:
+            base_im = Image.open("Tests/images/hopper"+ext)
 
-if __name__ == '__main__':
-    unittest.main()
+            orientations = [base_im]
+            for i in range(2, 9):
+                im = Image.open("Tests/images/hopper_orientation_"+str(i)+ext)
+                orientations.append(im)
+            for i, orientation_im in enumerate(orientations):
+                for im in [
+                    orientation_im,        # ImageFile
+                    orientation_im.copy()  # Image
+                ]:
+                    if i == 0:
+                        self.assertNotIn("exif", im.info)
+                    else:
+                        original_exif = im.info["exif"]
+                    transposed_im = ImageOps.exif_transpose(im)
+                    self.assert_image_similar(base_im, transposed_im, 17)
+                    if i == 0:
+                        self.assertNotIn("exif", im.info)
+                    else:
+                        self.assertNotEqual(transposed_im.info["exif"], original_exif)
+
+                        self.assertNotIn(0x0112, transposed_im.getexif())
+
+                    # Repeat the operation, to test that it does not keep transposing
+                    transposed_im2 = ImageOps.exif_transpose(transposed_im)
+                    self.assert_image_equal(transposed_im2, transposed_im)

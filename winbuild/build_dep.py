@@ -2,7 +2,10 @@ from unzip import unzip
 from untar import untar
 import os
 
-from config import compilers, compiler_from_env, libs
+from fetch import fetch
+from config import (compilers, all_compilers, compiler_from_env, bit_from_env,
+                    libs)
+from build import vc_setup
 
 
 def _relpath(*args):
@@ -27,7 +30,7 @@ def mkdirs():
         os.mkdir(inc_dir)
     except OSError:
         pass
-    for compiler in compilers.values():
+    for compiler in all_compilers():
         try:
             os.mkdir(os.path.join(inc_dir, compiler['inc_dir']))
         except OSError:
@@ -44,8 +47,10 @@ def extract(src, dest):
 def extract_libs():
     for name, lib in libs.items():
         filename = lib['filename']
+        if not os.path.exists(filename):
+            filename = fetch(lib['url'])
         if name == 'openjpeg':
-            for compiler in compilers.values():
+            for compiler in all_compilers():
                 if not os.path.exists(os.path.join(
                         build_dir, lib['dir']+compiler['inc_dir'])):
                     extract(filename, build_dir)
@@ -99,7 +104,7 @@ def setup_compiler(compiler):
     return r"""setlocal EnableDelayedExpansion
 call "%%ProgramFiles%%\Microsoft SDKs\Windows\%(env_version)s\Bin\SetEnv.Cmd" /Release %(env_flags)s
 set INCLIB=%%INCLIB%%\%(inc_dir)s
-""" % compiler
+""" % compiler  # noqa: E501
 
 
 def end_compiler():
@@ -116,24 +121,6 @@ rem build openjpeg
 setlocal
 @echo on
 cd /D %%OPENJPEG%%%(inc_dir)s
-%%CMAKE%% -DBUILD_THIRDPARTY:BOOL=OFF -G "NMake Makefiles" .
-nmake -f Makefile clean
-nmake -f Makefile
-copy /Y /B bin\* %%INCLIB%%
-mkdir %%INCLIB%%\openjpeg-%(op_ver)s
-copy /Y /B src\lib\openjp2\*.h %%INCLIB%%\openjpeg-%(op_ver)s
-endlocal
-""" % atts
-
-
-def msbuild_openjpeg(compiler):
-    atts = {'op_ver': '2.1'}
-    atts.update(compiler)
-    return r"""
-rem build openjpeg
-setlocal
-@echo on
-cd /D %%OPENJPEG%%%(inc_dir)s
 
 %%CMAKE%% -DBUILD_THIRDPARTY:BOOL=OFF -G "NMake Makefiles" .
 nmake -f Makefile clean
@@ -145,11 +132,12 @@ endlocal
 """ % atts
 
 
-def nmake_libs(compiler):
+def nmake_libs(compiler, bit):
     # undone -- pre, makes, headers, libs
-    return r"""
+    script = r"""
 rem Build libjpeg
 setlocal
+""" + vc_setup(compiler, bit) + r"""
 cd /D %%JPEG%%
 nmake -f makefile.vc setup-vc6
 nmake -f makefile.vc clean
@@ -173,6 +161,7 @@ endlocal
 
 rem Build webp
 setlocal
+""" + vc_setup(compiler, bit) + r"""
 cd /D %%WEBP%%
 rd /S /Q %%WEBP%%\output\release-static
 nmake -f Makefile.vc CFG=release-static RTLIBCFG=static OBJDIR=output all
@@ -183,6 +172,7 @@ endlocal
 
 rem Build libtiff
 setlocal
+""" + vc_setup(compiler, bit) + r"""
 rem do after building jpeg and zlib
 copy %%~dp0\nmake.opt %%TIFF%%
 
@@ -193,42 +183,34 @@ copy /Y /B libtiff\*.dll %%INCLIB%%
 copy /Y /B libtiff\*.lib %%INCLIB%%
 copy /Y /B libtiff\tiff*.h %%INCLIB%%
 endlocal
+"""
+    return script % compiler
 
 
-""" % compiler
-
-
-def msbuild_freetype(compiler):
-    if compiler['env_version'] == 'v7.1':
-        return msbuild_freetype_71(compiler)
-    return msbuild_freetype_70(compiler)
-
-
-def msbuild_freetype_71(compiler):
-    return r"""
+def msbuild_freetype(compiler, bit):
+    script = r"""
 rem Build freetype
 setlocal
 rd /S /Q %%FREETYPE%%\objs
-%%MSBUILD%% %%FREETYPE%%\builds\windows\vc%(vc_version)s\freetype.sln /t:Clean;Build /p:Configuration="Release" /p:Platform=%(platform)s /m
+set DefaultPlatformToolset=v100
+"""
+    properties = r"""/p:Configuration="Release" /p:Platform=%(platform)s"""
+    if bit == 64:
+        script += r'copy /Y /B ' +\
+            r'"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64\*.Lib" ' +\
+            r'%%FREETYPE%%\builds\windows\vc2010'
+        properties += r" /p:_IsNativeEnvironment=false"
+    script += r"""
+%%MSBUILD%% %%FREETYPE%%\builds\windows\vc2010\freetype.sln /t:Clean;Build """+properties+r""" /m
 xcopy /Y /E /Q %%FREETYPE%%\include %%INCLIB%%
-copy /Y /B %%FREETYPE%%\objs\vc%(vc_version)s\%(platform)s\*.lib %%INCLIB%%\freetype.lib
+"""
+    freetypeReleaseDir = r"%%FREETYPE%%\objs\%(platform)s\Release"
+    script += r"""
+copy /Y /B """+freetypeReleaseDir+r"""\freetype.lib %%INCLIB%%\freetype.lib
+copy /Y /B """+freetypeReleaseDir+r"""\freetype.dll %%INCLIB%%\..\freetype.dll
 endlocal
-""" % compiler
-
-
-def msbuild_freetype_70(compiler):
-    return r"""
-rem Build freetype
-setlocal
-py -3 %%~dp0\fixproj.py %%FREETYPE%%\builds\windows\vc%(vc_version)s\freetype.sln %(platform)s
-py -3 %%~dp0\fixproj.py %%FREETYPE%%\builds\windows\vc%(vc_version)s\freetype.vcproj %(platform)s
-rd /S /Q %%FREETYPE%%\objs
-%%MSBUILD%% %%FREETYPE%%\builds\windows\vc%(vc_version)s\freetype.sln /t:Clean;Build /p:Configuration="LIB Release";Platform=%(platform)s /m
-xcopy /Y /E /Q %%FREETYPE%%\include %%INCLIB%%
-xcopy /Y /E /Q %%FREETYPE%%\objs\win32\vc%(vc_version)s %%INCLIB%%
-copy /Y /B %%FREETYPE%%\objs\win32\vc%(vc_version)s\*.lib %%INCLIB%%\freetype.lib
-endlocal
-""" % compiler
+"""
+    return script % compiler  # noqa: E501
 
 
 def build_lcms2(compiler):
@@ -248,12 +230,12 @@ rem Build lcms2
 setlocal
 rd /S /Q %%LCMS%%\Lib
 rd /S /Q %%LCMS%%\Projects\VC%(vc_version)s\Release
-%%MSBUILD%% %%LCMS%%\Projects\VC%(vc_version)s\lcms2.sln  /t:Clean /p:Configuration="Release" /p:Platform=Win32 /m
-%%MSBUILD%% %%LCMS%%\Projects\VC%(vc_version)s\lcms2.sln /t:lcms2_static /p:Configuration="Release" /p:Platform=Win32 /m
+%%MSBUILD%% %%LCMS%%\Projects\VC%(vc_version)s\lcms2.sln /t:Clean /p:Configuration="Release" /p:Platform=Win32 /m
+%%MSBUILD%% %%LCMS%%\Projects\VC%(vc_version)s\lcms2.sln /t:lcms2_static /p:Configuration="Release" /p:Platform=Win32 /p:PlatformToolset=v90 /m
 xcopy /Y /E /Q %%LCMS%%\include %%INCLIB%%
-copy /Y /B %%LCMS%%\Projects\VC%(vc_version)s\Release\*.lib %%INCLIB%%
+copy /Y /B %%LCMS%%\Lib\MS\*.lib %%INCLIB%%
 endlocal
-""" % compiler
+""" % compiler  # noqa: E501
 
 
 def build_lcms_71(compiler):
@@ -262,23 +244,48 @@ rem Build lcms2
 setlocal
 rd /S /Q %%LCMS%%\Lib
 rd /S /Q %%LCMS%%\Projects\VC%(vc_version)s\Release
-%%MSBUILD%% %%LCMS%%\Projects\VC%(vc_version)s\lcms2.sln  /t:Clean /p:Configuration="Release" /p:Platform=%(platform)s /m
-%%MSBUILD%% %%LCMS%%\Projects\VC%(vc_version)s\lcms2.sln  /t:lcms2_static /p:Configuration="Release" /p:Platform=%(platform)s /m
+%%MSBUILD%% %%LCMS%%\Projects\VC%(vc_version)s\lcms2.sln /t:Clean /p:Configuration="Release" /p:Platform=%(platform)s /m
+%%MSBUILD%% %%LCMS%%\Projects\VC%(vc_version)s\lcms2.sln /t:lcms2_static /p:Configuration="Release" /p:Platform=%(platform)s /m
 xcopy /Y /E /Q %%LCMS%%\include %%INCLIB%%
 copy /Y /B %%LCMS%%\Lib\MS\*.lib %%INCLIB%%
 endlocal
-""" % compiler
+""" % compiler  # noqa: E501
 
 
-def add_compiler(compiler):
+def build_ghostscript(compiler, bit):
+    script = r"""
+rem Build gs
+setlocal
+""" + vc_setup(compiler, bit) + r"""
+set MSVC_VERSION=""" + {
+        "2010": "90",
+        "2015": "14"
+    }[compiler['vc_version']] + r"""
+set RCOMP="C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Bin\RC.Exe"
+cd /D %%GHOSTSCRIPT%%
+"""
+    if bit == 64:
+        script += r"""
+set WIN64=""
+"""
+    script += r"""
+nmake -f psi/msvc.mak
+copy /Y /B bin\ C:\Python27\
+endlocal
+"""
+    return script % compiler  # noqa: E501
+
+
+def add_compiler(compiler, bit):
     script.append(setup_compiler(compiler))
-    script.append(nmake_libs(compiler))
+    script.append(nmake_libs(compiler, bit))
 
     # script.append(extract_openjpeg(compiler))
 
-    script.append(msbuild_freetype(compiler))
+    script.append(msbuild_freetype(compiler, bit))
     script.append(build_lcms2(compiler))
     # script.append(nmake_openjpeg(compiler))
+    script.append(build_ghostscript(compiler, bit))
     script.append(end_compiler())
 
 
@@ -290,12 +297,11 @@ script = [header(),
 
 
 if 'PYTHON' in os.environ:
-    add_compiler(compiler_from_env())
+    add_compiler(compiler_from_env(), bit_from_env())
 else:
-    # for compiler in compilers.values():
-        # add_compiler(compiler)
-    add_compiler(compilers[(7.0, 32)])
-    # add_compiler(compilers[(7.1, 64)])
+    # for compiler in all_compilers():
+    #     add_compiler(compiler)
+    add_compiler(compilers[7.0][2010][32], 32)
 
 with open('build_deps.cmd', 'w') as f:
     f.write("\n".join(script))

@@ -27,6 +27,8 @@ from ._binary import i16le as word, si16le as short, \
 from ._util import py3
 
 
+# __version__ is deprecated and will be removed in a future version. Use
+# PIL.__version__ instead.
 __version__ = "0.2"
 
 _handler = None
@@ -109,8 +111,6 @@ class WmfStubImageFile(ImageFile.StubImageFile):
 
             self.info["dpi"] = 72
 
-            # print(self.mode, self.size, self.info)
-
             # sanity check (standard metafile header)
             if s[22:26] != b"\x01\x00\t\x00":
                 raise SyntaxError("Unsupported WMF file format")
@@ -131,8 +131,8 @@ class WmfStubImageFile(ImageFile.StubImageFile):
             size = x1 - x0, y1 - y0
 
             # calculate dots per inch from bbox and frame
-            xdpi = 2540 * (x1 - y0) // (frame[2] - frame[0])
-            ydpi = 2540 * (y1 - y0) // (frame[3] - frame[1])
+            xdpi = int(2540.0 * (x1 - y0) / (frame[2] - frame[0]) + 0.5)
+            ydpi = int(2540.0 * (y1 - y0) / (frame[3] - frame[1]) + 0.5)
 
             self.info["wmf_bbox"] = x0, y0, x1, y1
 
@@ -145,7 +145,7 @@ class WmfStubImageFile(ImageFile.StubImageFile):
             raise SyntaxError("Unsupported file format")
 
         self.mode = "RGB"
-        self.size = size
+        self._size = size
 
         loader = self._load()
         if loader:

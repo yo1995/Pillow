@@ -2,7 +2,7 @@ from __future__ import division, print_function
 
 from contextlib import contextmanager
 
-from helper import unittest, PillowTestCase, hopper
+from .helper import unittest, PillowTestCase, hopper
 from PIL import Image, ImageDraw
 
 
@@ -196,7 +196,7 @@ class TestImagingCoreResampleAccuracy(PillowTestCase):
 class CoreResampleConsistencyTest(PillowTestCase):
     def make_case(self, mode, fill):
         im = Image.new(mode, (512, 9), fill)
-        return (im.resize((9, 512), Image.LANCZOS), im.load()[0, 0])
+        return im.resize((9, 512), Image.LANCZOS), im.load()[0, 0]
 
     def run_case(self, case):
         channel, color = case
@@ -352,10 +352,8 @@ class CoreResamplePassesTest(PillowTestCase):
 class CoreResampleCoefficientsTest(PillowTestCase):
     def test_reduce(self):
         test_color = 254
-        # print()
 
         for size in range(400000, 400010, 2):
-            # print(size)
             i = Image.new('L', (size, 1), 0)
             draw = ImageDraw.Draw(i)
             draw.rectangle((0, 0, i.size[0] // 2 - 1, 0), test_color)
@@ -363,7 +361,6 @@ class CoreResampleCoefficientsTest(PillowTestCase):
             px = i.resize((5, i.size[1]), Image.BICUBIC).load()
             if px[2, 0] != test_color // 2:
                 self.assertEqual(test_color // 2, px[2, 0])
-                # print('>', size, test_color // 2, px[2, 0])
 
     def test_nonzero_coefficients(self):
         # regression test for the wrong coefficients calculation
@@ -456,7 +453,7 @@ class CoreResampleBoxTest(PillowTestCase):
 
         # error with box should be much smaller than without
         self.assert_image_similar(reference, with_box, 6)
-        with self.assertRaisesRegex(AssertionError, "difference 29\."):
+        with self.assertRaisesRegex(AssertionError, r"difference 29\."):
             self.assert_image_similar(reference, without_box, 5)
 
     def test_formats(self):
@@ -499,7 +496,7 @@ class CoreResampleBoxTest(PillowTestCase):
             try:
                 res = im.resize(size, Image.LANCZOS, box)
                 self.assertEqual(res.size, size)
-                with self.assertRaisesRegex(AssertionError, "difference \d"):
+                with self.assertRaisesRegex(AssertionError, r"difference \d"):
                     # check that the difference at least that much
                     self.assert_image_similar(res, im.crop(box), 20)
             except AssertionError:
@@ -547,7 +544,3 @@ class CoreResampleBoxTest(PillowTestCase):
                 except AssertionError:
                     print('>>>', size, box, flt)
                     raise
-
-
-if __name__ == '__main__':
-    unittest.main()

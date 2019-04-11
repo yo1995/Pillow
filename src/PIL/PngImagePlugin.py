@@ -40,6 +40,8 @@ from . import Image, ImageFile, ImagePalette
 from ._binary import i8, i16be as i16, i32be as i32, o16be as o16, o32be as o32
 from ._util import py3
 
+# __version__ is deprecated and will be removed in a future version. Use
+# PIL.__version__ instead.
 __version__ = "0.9"
 
 logger = logging.getLogger(__name__)
@@ -52,19 +54,24 @@ _MAGIC = b"\211PNG\r\n\032\n"
 
 _MODES = {
     # supported bits/color combinations, and corresponding modes/rawmodes
+    # Greyscale
     (1, 0):  ("1", "1"),
     (2, 0):  ("L", "L;2"),
     (4, 0):  ("L", "L;4"),
     (8, 0):  ("L", "L"),
     (16, 0): ("I", "I;16B"),
+    # Truecolour
     (8, 2):  ("RGB", "RGB"),
     (16, 2): ("RGB", "RGB;16B"),
+    # Indexed-colour
     (1, 3):  ("P", "P;1"),
     (2, 3):  ("P", "P;2"),
     (4, 3):  ("P", "P;4"),
     (8, 3):  ("P", "P"),
+    # Greyscale with alpha
     (8, 4):  ("LA", "LA"),
     (16, 4): ("RGBA", "LA;16B"),  # LA;16B->LA not yet available
+    # Truecolour with alpha
     (8, 6):  ("RGBA", "RGBA"),
     (16, 6): ("RGBA", "RGBA;16B"),
 }
@@ -102,7 +109,7 @@ class ChunkStream(object):
         self.queue = []
 
     def read(self):
-        "Fetch a new chunk. Returns header information."
+        """Fetch a new chunk. Returns header information."""
         cid = None
 
         if self.queue:
@@ -134,13 +141,13 @@ class ChunkStream(object):
         self.queue.append((cid, pos, length))
 
     def call(self, cid, pos, length):
-        "Call the appropriate chunk handler"
+        """Call the appropriate chunk handler"""
 
         logger.debug("STREAM %r %s %s", cid, pos, length)
         return getattr(self, "chunk_" + cid.decode('ascii'))(pos, length)
 
     def crc(self, cid, data):
-        "Read and verify checksum"
+        """Read and verify checksum"""
 
         # Skip CRC checks for ancillary chunks if allowed to load truncated
         # images
@@ -160,7 +167,7 @@ class ChunkStream(object):
                               % cid)
 
     def crc_skip(self, cid, data):
-        "Read checksum.  Used if the C module is not present"
+        """Read checksum.  Used if the C module is not present"""
 
         self.fp.read(4)
 
@@ -192,7 +199,7 @@ class iTXt(str):
 
     """
     @staticmethod
-    def __new__(cls, text, lang, tkey):
+    def __new__(cls, text, lang=None, tkey=None):
         """
         :param cls: the class to use when creating the instance
         :param text: value for this key
@@ -296,6 +303,7 @@ class PngStream(ChunkStream):
         self.im_mode = None
         self.im_tile = None
         self.im_palette = None
+        self.im_custom_mimetype = None
 
         self.text_memory = 0
 
@@ -340,7 +348,7 @@ class PngStream(ChunkStream):
         self.im_size = i32(s), i32(s[4:])
         try:
             self.im_mode, self.im_rawmode = _MODES[(i8(s[8]), i8(s[9]))]
-        except:
+        except Exception:
             pass
         if i8(s[12]):
             self.im_info["interlace"] = 1
@@ -383,7 +391,7 @@ class PngStream(ChunkStream):
                 # otherwise, we have a byte string with one alpha value
                 # for each palette entry
                 self.im_info["transparency"] = s
-        elif self.im_mode == "L":
+        elif self.im_mode in ("1", "L", "I"):
             self.im_info["transparency"] = i16(s)
         elif self.im_mode == "RGB":
             self.im_info["transparency"] = i16(s), i16(s[2:]), i16(s[4:])
@@ -526,6 +534,17 @@ class PngStream(ChunkStream):
 
         return s
 
+    def chunk_eXIf(self, pos, length):
+        s = ImageFile._safe_read(self.fp, length)
+        self.im_info["exif"] = b"Exif\x00\x00"+s
+        return s
+
+    # APNG chunks
+    def chunk_acTL(self, pos, length):
+        s = ImageFile._safe_read(self.fp, length)
+        self.im_custom_mimetype = 'image/apng'
+        return s
+
 
 # --------------------------------------------------------------------
 # PNG reader
@@ -577,10 +596,11 @@ class PngImageFile(ImageFile.ImageFile):
         # (believe me, I've tried ;-)
 
         self.mode = self.png.im_mode
-        self.size = self.png.im_size
+        self._size = self.png.im_size
         self.info = self.png.im_info
-        self.text = self.png.im_text  # experimental
+        self._text = None
         self.tile = self.png.im_tile
+        self.custom_mimetype = self.png.im_custom_mimetype
 
         if self.png.im_palette:
             rawmode, data = self.png.im_palette
@@ -588,8 +608,17 @@ class PngImageFile(ImageFile.ImageFile):
 
         self.__idat = length  # used by load_read()
 
+    @property
+    def text(self):
+        # experimental
+        if self._text is None:
+            # iTxt, tEXt and zTXt chunks may appear at the end of the file
+            # So load the file to ensure that they are read
+            self.load()
+        return self._text
+
     def verify(self):
-        "Verify PNG file"
+        """Verify PNG file"""
 
         if self.fp is None:
             raise RuntimeError("verify must be called directly after open")
@@ -600,10 +629,12 @@ class PngImageFile(ImageFile.ImageFile):
         self.png.verify()
         self.png.close()
 
+        if self._exclusive_fp:
+            self.fp.close()
         self.fp = None
 
     def load_prepare(self):
-        "internal: prepare to read PNG file"
+        """internal: prepare to read PNG file"""
 
         if self.info.get("interlace"):
             self.decoderconfig = self.decoderconfig + (1,)
@@ -611,7 +642,7 @@ class PngImageFile(ImageFile.ImageFile):
         ImageFile.ImageFile.load_prepare(self)
 
     def load_read(self, read_bytes):
-        "internal: read more image data"
+        """internal: read more image data"""
 
         while self.__idat == 0:
             # end of chunk, skip forward to next one
@@ -637,10 +668,42 @@ class PngImageFile(ImageFile.ImageFile):
         return self.fp.read(read_bytes)
 
     def load_end(self):
-        "internal: finished reading image data"
+        """internal: finished reading image data"""
+        while True:
+            self.fp.read(4)  # CRC
 
+            try:
+                cid, pos, length = self.png.read()
+            except (struct.error, SyntaxError):
+                break
+
+            if cid == b"IEND":
+                break
+
+            try:
+                self.png.call(cid, pos, length)
+            except UnicodeDecodeError:
+                break
+            except EOFError:
+                ImageFile._safe_read(self.fp, length)
+            except AttributeError:
+                logger.debug("%r %s %s (unknown)", cid, pos, length)
+                ImageFile._safe_read(self.fp, length)
+        self._text = self.png.im_text
         self.png.close()
         self.png = None
+
+    def _getexif(self):
+        if "exif" not in self.info:
+            self.load()
+        if "exif" not in self.info:
+            return None
+        return dict(self.getexif())
+
+    def getexif(self):
+        if "exif" not in self.info:
+            self.load()
+        return ImageFile.ImageFile.getexif(self)
 
 
 # --------------------------------------------------------------------
@@ -655,6 +718,7 @@ _OUTMODES = {
     "L":    ("L",       b'\x08\x00'),
     "LA":   ("LA",      b'\x08\x04'),
     "I":    ("I;16B",   b'\x10\x00'),
+    "I;16": ("I;16B",   b'\x10\x00'),
     "P;1":  ("P;1",     b'\x01\x03'),
     "P;2":  ("P;2",     b'\x02\x03'),
     "P;4":  ("P;4",     b'\x04\x03'),
@@ -788,7 +852,7 @@ def _save(im, fp, filename, chunk=putchunk):
                 transparency = max(0, min(255, transparency))
                 alpha = b'\xFF' * transparency + b'\0'
                 chunk(fp, b"tRNS", alpha[:alpha_bytes])
-        elif im.mode == "L":
+        elif im.mode in ("1", "L", "I"):
             transparency = max(0, min(65535, transparency))
             chunk(fp, b"tRNS", o16(transparency))
         elif im.mode == "RGB":
@@ -819,6 +883,14 @@ def _save(im, fp, filename, chunk=putchunk):
             if cid in chunks:
                 chunks.remove(cid)
                 chunk(fp, cid, data)
+
+    exif = im.encoderinfo.get("exif", im.info.get("exif"))
+    if exif:
+        if isinstance(exif, Image.Exif):
+            exif = exif.tobytes(8)
+        if exif.startswith(b"Exif\x00\x00"):
+            exif = exif[6:]
+        chunk(fp, b"eXIf", exif)
 
     ImageFile._save(im, _idat(fp, chunk),
                     [("zip", (0, 0)+im.size, 0, rawmode)])
@@ -866,6 +938,6 @@ def getchunks(im, **params):
 Image.register_open(PngImageFile.format, PngImageFile, _accept)
 Image.register_save(PngImageFile.format, _save)
 
-Image.register_extension(PngImageFile.format, ".png")
+Image.register_extensions(PngImageFile.format, [".png", ".apng"])
 
 Image.register_mime(PngImageFile.format, "image/png")

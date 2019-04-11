@@ -1,4 +1,4 @@
-from helper import unittest, PillowTestCase, hopper
+from .helper import PillowTestCase, hopper
 
 from PIL import Image
 
@@ -42,7 +42,7 @@ class TestImageMode(PillowTestCase):
             self.assertEqual(signature, result)
         check("1", "L", "L", 1, ("1",))
         check("L", "L", "L", 1, ("L",))
-        check("P", "RGB", "L", 1, ("P",))
+        check("P", "P", "L", 1, ("P",))
         check("I", "L", "I", 1, ("I",))
         check("F", "L", "F", 1, ("F",))
         check("RGB", "RGB", "L", 3, ("R", "G", "B"))
@@ -51,7 +51,3 @@ class TestImageMode(PillowTestCase):
         check("RGBX", "RGB", "L", 4, ("R", "G", "B", "X"))
         check("CMYK", "RGB", "L", 4, ("C", "M", "Y", "K"))
         check("YCbCr", "RGB", "L", 3, ("Y", "Cb", "Cr"))
-
-
-if __name__ == '__main__':
-    unittest.main()

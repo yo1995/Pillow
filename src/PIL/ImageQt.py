@@ -20,25 +20,41 @@ from . import Image
 from ._util import isPath, py3
 from io import BytesIO
 import sys
+import warnings
 
 qt_versions = [
     ['5', 'PyQt5'],
+    ['side2', 'PySide2'],
     ['4', 'PyQt4'],
     ['side', 'PySide']
 ]
+
+WARNING_TEXT = (
+    "Support for EOL {} is deprecated and will be removed in a future version. "
+    "Please upgrade to PyQt5 or PySide2."
+)
+
 # If a version has already been imported, attempt it first
-qt_versions.sort(key=lambda qt_version: qt_version[1] in sys.modules, reverse=True)
+qt_versions.sort(key=lambda qt_version: qt_version[1] in sys.modules,
+                 reverse=True)
 for qt_version, qt_module in qt_versions:
     try:
         if qt_module == 'PyQt5':
             from PyQt5.QtGui import QImage, qRgba, QPixmap
             from PyQt5.QtCore import QBuffer, QIODevice
+        elif qt_module == 'PySide2':
+            from PySide2.QtGui import QImage, qRgba, QPixmap
+            from PySide2.QtCore import QBuffer, QIODevice
         elif qt_module == 'PyQt4':
             from PyQt4.QtGui import QImage, qRgba, QPixmap
             from PyQt4.QtCore import QBuffer, QIODevice
+
+            warnings.warn(WARNING_TEXT.format(qt_module), DeprecationWarning)
         elif qt_module == 'PySide':
             from PySide.QtGui import QImage, qRgba, QPixmap
             from PySide.QtCore import QBuffer, QIODevice
+
+            warnings.warn(WARNING_TEXT.format(qt_module), DeprecationWarning)
     except (ImportError, RuntimeError):
         continue
     qt_is_installed = True
@@ -62,7 +78,7 @@ def fromqimage(im):
     """
     buffer = QBuffer()
     buffer.open(QIODevice.ReadWrite)
-    # preserve alha channel with png
+    # preserve alpha channel with png
     # otherwise ppm is more friendly with Image.open
     if im.hasAlphaChannel():
         im.save(buffer, 'png')
@@ -135,7 +151,7 @@ def _toqclass_helper(im):
         if py3:
             im = str(im.toUtf8(), "utf-8")
         else:
-            im = unicode(im.toUtf8(), "utf-8")
+            im = unicode(im.toUtf8(), "utf-8")  # noqa: F821
     if isPath(im):
         im = Image.open(im)
 
@@ -180,8 +196,8 @@ if qt_is_installed:
             An PIL image wrapper for Qt.  This is a subclass of PyQt's QImage
             class.
 
-            :param im: A PIL Image object, or a file name (given either as Python
-                string or a PyQt string object).
+            :param im: A PIL Image object, or a file name (given either as
+                Python string or a PyQt string object).
             """
             im_data = _toqclass_helper(im)
             # must keep a reference, or Qt will crash!

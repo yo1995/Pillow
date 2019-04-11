@@ -3,7 +3,7 @@ from __future__ import division
 from array import array
 
 from PIL import Image, ImageFilter
-from helper import unittest, PillowTestCase
+from .helper import unittest, PillowTestCase
 
 try:
     import numpy
@@ -294,6 +294,8 @@ class TestColorLut3DFilter(PillowTestCase):
 
         lut = ImageFilter.Color3DLUT((2, 2, 2), [(0, 1, 2, 3)] * 8,
                                      channels=4)
+        self.assertEqual(tuple(lut.size), (2, 2, 2))
+        self.assertEqual(lut.table, list(range(4)) * 8)
 
     @unittest.skipIf(numpy is None, "Numpy is not installed")
     def test_numpy_sources(self):
@@ -335,35 +337,35 @@ class TestColorLut3DFilter(PillowTestCase):
                                  g.transpose(Image.ROTATE_180)])
 
         lut = ImageFilter.Color3DLUT.generate((7, 9, 11),
-            lambda r, g, b: (r, g, b))
+                                              lambda r, g, b: (r, g, b))
         lut.table = numpy.array(lut.table, dtype=numpy.float32)[:-1]
         with self.assertRaisesRegex(ValueError, "should have table_channels"):
             im.filter(lut)
 
         lut = ImageFilter.Color3DLUT.generate((7, 9, 11),
-            lambda r, g, b: (r, g, b))
+                                              lambda r, g, b: (r, g, b))
         lut.table = (numpy.array(lut.table, dtype=numpy.float32)
                      .reshape((7 * 9 * 11), 3))
         with self.assertRaisesRegex(ValueError, "should have table_channels"):
             im.filter(lut)
 
         lut = ImageFilter.Color3DLUT.generate((7, 9, 11),
-            lambda r, g, b: (r, g, b))
+                                              lambda r, g, b: (r, g, b))
         lut.table = numpy.array(lut.table, dtype=numpy.float16)
         self.assert_image_equal(im, im.filter(lut))
 
         lut = ImageFilter.Color3DLUT.generate((7, 9, 11),
-            lambda r, g, b: (r, g, b))
+                                              lambda r, g, b: (r, g, b))
         lut.table = numpy.array(lut.table, dtype=numpy.float32)
         self.assert_image_equal(im, im.filter(lut))
 
         lut = ImageFilter.Color3DLUT.generate((7, 9, 11),
-            lambda r, g, b: (r, g, b))
+                                              lambda r, g, b: (r, g, b))
         lut.table = numpy.array(lut.table, dtype=numpy.float64)
         self.assert_image_equal(im, im.filter(lut))
 
         lut = ImageFilter.Color3DLUT.generate((7, 9, 11),
-            lambda r, g, b: (r, g, b))
+                                              lambda r, g, b: (r, g, b))
         lut.table = numpy.array(lut.table, dtype=numpy.int32)
         im.filter(lut)
         lut.table = numpy.array(lut.table, dtype=numpy.int8)
@@ -517,7 +519,3 @@ class TestTransformColorLut3D(PillowTestCase):
         self.assertEqual(lut.table[0:16], [
             0.0, 0.0, 0.0, 0.5,  0.25, 0.0, 0.0, 0.5,
             0.0, 0.0, 0.0, 0.5,  0.0, 0.16, 0.0, 0.5])
-
-
-if __name__ == '__main__':
-    unittest.main()

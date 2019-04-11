@@ -18,9 +18,13 @@ environment:
     PIP_DIR: bin
     VENV: YES
   - PYTHON: C:/Python27-x64
-  - PYTHON: C:/Python34
+  - PYTHON: C:/Python37
   - PYTHON: C:/Python27
-  - PYTHON: C:/Python34-x64
+  - PYTHON: C:/Python37-x64
+  - PYTHON: C:/Python36
+  - PYTHON: C:/Python36-x64
+  - PYTHON: C:/Python35
+  - PYTHON: C:/Python35-x64
   - PYTHON: C:/msys64/mingw32
     EXECUTABLE: bin/python3
     PIP_DIR: bin
@@ -48,7 +52,7 @@ install:
       }
       else
       {
-        c:\python34\python.exe c:\pillow\winbuild\build_dep.py
+        c:\python37\python.exe c:\pillow\winbuild\build_dep.py
         c:\pillow\winbuild\build_deps.cmd
         $host.SetShouldExit(0)
       }
@@ -71,7 +75,7 @@ build_script:
 
 test_script:
 - cd c:\pillow
-- '%PYTHON%\%PIP_DIR%\pip.exe install "pytest<3.7" pytest-cov'
+- '%PYTHON%\%PIP_DIR%\pip.exe install pytest pytest-cov'
 - '%PYTHON%\%EXECUTABLE% -m pytest -vx --cov PIL --cov-report term --cov-report xml Tests'
 #- '%PYTHON%\%EXECUTABLE% test-installed.py -v -s %TEST_OPTIONS%' TODO TEST_OPTIONS with pytest?
 

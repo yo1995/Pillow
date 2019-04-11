@@ -10,11 +10,11 @@ Pillow is the friendly PIL fork by `Alex Clark and Contributors <https://github.
    :target: https://pillow.readthedocs.io/?badge=latest
    :alt: Documentation Status
 
-.. image:: https://travis-ci.org/python-pillow/Pillow.svg?branch=master
+.. image:: https://img.shields.io/travis/python-pillow/Pillow/master.svg?label=Linux%20build
    :target: https://travis-ci.org/python-pillow/Pillow
    :alt: Travis CI build status (Linux)
 
-.. image:: https://travis-ci.org/python-pillow/pillow-wheels.svg?branch=latest
+.. image:: https://img.shields.io/travis/python-pillow/pillow-wheels/master.svg?label=macOS%20build
    :target: https://travis-ci.org/python-pillow/pillow-wheels
    :alt: Travis CI build status (macOS)
 
@@ -26,8 +26,12 @@ Pillow is the friendly PIL fork by `Alex Clark and Contributors <https://github.
    :target: https://pypi.org/project/Pillow/
    :alt: Latest PyPI version
 
-.. image:: https://coveralls.io/repos/python-pillow/Pillow/badge.svg?branch=master
-   :target: https://coveralls.io/github/python-pillow/Pillow?branch=master
+.. image:: https://img.shields.io/pypi/dm/pillow.svg
+   :target: https://pypi.org/project/Pillow/
+   :alt: Number of PyPI downloads
+
+.. image:: https://codecov.io/gh/python-pillow/Pillow/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/python-pillow/Pillow
    :alt: Code coverage
 
 .. toctree::
@@ -39,6 +43,7 @@ Pillow is the friendly PIL fork by `Alex Clark and Contributors <https://github.
    porting.rst
    about.rst
    releasenotes/index.rst
+   deprecations.rst
 
 Indices and tables
 ==================
