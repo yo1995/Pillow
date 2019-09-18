@@ -101,6 +101,19 @@ bit2ycbcr(UINT8* out, const UINT8* in, int xsize)
     }
 }
 
+static void
+bit2hsv(UINT8* out, const UINT8* in, int xsize)
+{
+    int x;
+    for (x = 0; x < xsize; x++, out += 4) {
+        UINT8 v = (*in++ != 0) ? 255 : 0;
+        out[0] = 0;
+        out[1] = 0;
+        out[2] = v;
+        out[3] = 255;
+    }
+}
+
 /* ----------------- */
 /* RGB/L conversions */
 /* ----------------- */
@@ -176,6 +189,19 @@ l2rgb(UINT8* out, const UINT8* in, int xsize)
 }
 
 static void
+l2hsv(UINT8* out, const UINT8* in, int xsize)
+{
+    int x;
+    for (x = 0; x < xsize; x++, out += 4) {
+        UINT8 v = *in++;
+        out[0] = 0;
+        out[1] = 0;
+        out[2] = v;
+        out[3] = 255;
+    }
+}
+
+static void
 la2l(UINT8* out, const UINT8* in, int xsize)
 {
     int x;
@@ -193,6 +219,19 @@ la2rgb(UINT8* out, const UINT8* in, int xsize)
         *out++ = v;
         *out++ = v;
         *out++ = in[3];
+    }
+}
+
+static void
+la2hsv(UINT8* out, const UINT8* in, int xsize)
+{
+    int x;
+    for (x = 0; x < xsize; x++, in += 4, out += 4) {
+        UINT8 v = in[0];
+        out[0] = 0;
+        out[1] = 0;
+        out[2] = v;
+        out[3] = in[3];
     }
 }
 
@@ -229,42 +268,46 @@ static void
 rgb2i(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    INT32* out = (INT32*) out_;
-    for (x = 0; x < xsize; x++, in += 4)
-        *out++ = L24(in) >> 16;
+    for (x = 0; x < xsize; x++, in += 4, out_ += 4) {
+        INT32 v = L24(in) >> 16;
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
 rgb2f(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    FLOAT32* out = (FLOAT32*) out_;
-    for (x = 0; x < xsize; x++, in += 4)
-        *out++ = (float) L(in) / 1000.0F;
+    for (x = 0; x < xsize; x++, in += 4, out_ += 4) {
+        FLOAT32 v = (float) L(in) / 1000.0F;
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
 rgb2bgr15(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    UINT16* out = (UINT16*) out_;
-    for (x = 0; x < xsize; x++, in += 4)
-        *out++ =
+    for (x = 0; x < xsize; x++, in += 4, out_ += 2) {
+        UINT16 v =
             ((((UINT16)in[0])<<7)&0x7c00) +
             ((((UINT16)in[1])<<2)&0x03e0) +
             ((((UINT16)in[2])>>3)&0x001f);
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
 rgb2bgr16(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    UINT16* out = (UINT16*) out_;
-    for (x = 0; x < xsize; x++, in += 4)
-        *out++ =
+    for (x = 0; x < xsize; x++, in += 4, out_ += 2) {
+        UINT16 v =
             ((((UINT16)in[0])<<8)&0xf800) +
             ((((UINT16)in[1])<<3)&0x07e0) +
             ((((UINT16)in[2])>>3)&0x001f);
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
@@ -279,53 +322,57 @@ rgb2bgr24(UINT8* out, const UINT8* in, int xsize)
 }
 
 static void
-rgb2hsv(UINT8* out, const UINT8* in, int xsize)
+rgb2hsv_row(UINT8* out, const UINT8* in)
 { // following colorsys.py
     float h,s,rc,gc,bc,cr;
     UINT8 maxc,minc;
     UINT8 r, g, b;
     UINT8 uh,us,uv;
-    int x;
 
-    for (x = 0; x < xsize; x++, in += 4) {
-        r = in[0];
-        g = in[1];
-        b = in[2];
-
-        maxc = MAX(r,MAX(g,b));
-        minc = MIN(r,MIN(g,b));
-        uv = maxc;
-        if (minc == maxc){
-            *out++ = 0;
-            *out++ = 0;
-            *out++ = uv;
+    r = in[0];
+    g = in[1];
+    b = in[2];
+    maxc = MAX(r,MAX(g,b));
+    minc = MIN(r,MIN(g,b));
+    uv = maxc;
+    if (minc == maxc){
+        uh = 0;
+        us = 0;
+    } else {
+        cr = (float)(maxc-minc);
+        s = cr/(float)maxc;
+        rc = ((float)(maxc-r))/cr;
+        gc = ((float)(maxc-g))/cr;
+        bc = ((float)(maxc-b))/cr;
+        if (r == maxc) {
+            h = bc-gc;
+        } else if (g == maxc) {
+            h = 2.0 + rc-bc;
         } else {
-            cr = (float)(maxc-minc);
-            s = cr/(float)maxc;
-            rc = ((float)(maxc-r))/cr;
-            gc = ((float)(maxc-g))/cr;
-            bc = ((float)(maxc-b))/cr;
-            if (r == maxc) {
-                h = bc-gc;
-            } else if (g == maxc) {
-                h = 2.0 + rc-bc;
-            } else {
-                h = 4.0 + gc-rc;
-            }
-            // incorrect hue happens if h/6 is negative.
-            h = fmod((h/6.0 + 1.0), 1.0);
-
-            uh = (UINT8)CLIP8((int)(h*255.0));
-            us = (UINT8)CLIP8((int)(s*255.0));
-
-            *out++ = uh;
-            *out++ = us;
-            *out++ = uv;
-
+            h = 4.0 + gc-rc;
         }
-        *out++ = in[3];
+        // incorrect hue happens if h/6 is negative.
+        h = fmod((h/6.0 + 1.0), 1.0);
+
+        uh = (UINT8)CLIP8((int)(h*255.0));
+        us = (UINT8)CLIP8((int)(s*255.0));
+    }
+    out[0] = uh;
+    out[1] = us;
+    out[2] = uv;
+}
+
+static void
+rgb2hsv(UINT8* out, const UINT8* in, int xsize)
+{
+    int x;
+    for (x = 0; x < xsize; x++, in += 4, out += 4) {
+        rgb2hsv_row(out, in);
+        out[3] = in[3];
     }
 }
+
+
 
 static void
 hsv2rgb(UINT8* out, const UINT8* in, int xsize)
@@ -490,12 +537,13 @@ rgbT2rgba(UINT8* out, int xsize, int r, int g, int b)
     UINT32 repl = trns & 0x00ffffff;
 #endif
 
-    UINT32* tmp = (UINT32 *)out;
     int i;
 
-    for (i=0; i < xsize; i++ ,tmp++) {
-        if (tmp[0]==trns) {
-            tmp[0]=repl;
+    for (i=0; i < xsize; i++ ,out += sizeof(trns)) {
+        UINT32 v;
+        memcpy(&v, out, sizeof(v));
+        if (v==trns) {
+            memcpy(out, &repl, sizeof(repl));
         }
     }
 }
@@ -557,6 +605,22 @@ cmyk2rgb(UINT8* out, const UINT8* in, int xsize)
     }
 }
 
+static void
+cmyk2hsv(UINT8* out, const UINT8* in, int xsize)
+{
+    int x, nk, tmp;
+    for (x = 0; x < xsize; x++) {
+        nk = 255 - in[3];
+        out[0] = CLIP8(nk - MULDIV255(in[0], nk, tmp));
+        out[1] = CLIP8(nk - MULDIV255(in[1], nk, tmp));
+        out[2] = CLIP8(nk - MULDIV255(in[2], nk, tmp));
+        rgb2hsv_row(out, out);
+        out[3] = 255;
+        out += 4;
+        in += 4;
+    }
+}
+
 /* ------------- */
 /* I conversions */
 /* ------------- */
@@ -565,32 +629,35 @@ static void
 bit2i(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    INT32* out = (INT32*) out_;
-    for (x = 0; x < xsize; x++)
-        *out++ = (*in++ != 0) ? 255 : 0;
+    for (x = 0; x < xsize; x++, out_ += 4) {
+        INT32 v = (*in++ != 0) ? 255 : 0;
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
 l2i(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    INT32* out = (INT32*) out_;
-    for (x = 0; x < xsize; x++)
-        *out++ = (INT32) *in++;
+    for (x = 0; x < xsize; x++, out_ += 4) {
+        INT32 v = *in++;
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
 i2l(UINT8* out, const UINT8* in_, int xsize)
 {
     int x;
-    INT32* in = (INT32*) in_;
-    for (x = 0; x < xsize; x++, in++, out++) {
-        if (*in <= 0)
+    for (x = 0; x < xsize; x++, out++, in_ += 4) {
+        INT32 v;
+        memcpy(&v, in_, sizeof(v));
+        if (v <= 0)
             *out = 0;
-        else if (*in >= 255)
+        else if (v >= 255)
             *out = 255;
         else
-            *out = (UINT8) *in;
+            *out = (UINT8) v;
     }
 }
 
@@ -598,10 +665,13 @@ static void
 i2f(UINT8* out_, const UINT8* in_, int xsize)
 {
     int x;
-    INT32* in = (INT32*) in_;
-    FLOAT32* out = (FLOAT32*) out_;
-    for (x = 0; x < xsize; x++)
-        *out++ = (FLOAT32) *in++;
+    for (x = 0; x < xsize; x++, in_ += 4, out_ += 4) {
+        INT32 i;
+        FLOAT32 f;
+        memcpy(&i, in_, sizeof(i));
+        f = i;
+        memcpy(out_, &f, sizeof(f));
+    }
 }
 
 static void
@@ -620,6 +690,25 @@ i2rgb(UINT8* out, const UINT8* in_, int xsize)
     }
 }
 
+static void
+i2hsv(UINT8* out, const UINT8* in_, int xsize)
+{
+    int x;
+    INT32* in = (INT32*) in_;
+    for (x = 0; x < xsize; x++, in++, out+=4) {
+        out[0] = 0;
+        out[1] = 0;
+        if (*in <= 0) {
+            out[2] = 0;
+        } else if (*in >= 255) {
+            out[2] = 255;
+        } else {
+            out[2] = (UINT8) *in;
+        }
+        out[3] = 255;
+    }
+}
+
 /* ------------- */
 /* F conversions */
 /* ------------- */
@@ -628,32 +717,35 @@ static void
 bit2f(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    FLOAT32* out = (FLOAT32*) out_;
-    for (x = 0; x < xsize; x++)
-        *out++ = (*in++ != 0) ? 255.0F : 0.0F;
+    for (x = 0; x < xsize; x++, out_ += 4) {
+        FLOAT32 f = (*in++ != 0) ? 255.0F : 0.0F;
+        memcpy(out_, &f, sizeof(f));
+    }
 }
 
 static void
 l2f(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    FLOAT32* out = (FLOAT32*) out_;
-    for (x = 0; x < xsize; x++)
-        *out++ = (FLOAT32) *in++;
+    for (x = 0; x < xsize; x++, out_ += 4) {
+        FLOAT32 f = (FLOAT32) *in++;
+        memcpy(out_, &f, sizeof(f));
+    }
 }
 
 static void
 f2l(UINT8* out, const UINT8* in_, int xsize)
 {
     int x;
-    FLOAT32* in = (FLOAT32*) in_;
-    for (x = 0; x < xsize; x++, in++, out++) {
-        if (*in <= 0.0)
+    for (x = 0; x < xsize; x++, out++, in_ += 4) {
+        FLOAT32 v;
+        memcpy(&v, in_, sizeof(v));
+        if (v <= 0.0)
             *out = 0;
-        else if (*in >= 255.0)
+        else if (v >= 255.0)
             *out = 255;
         else
-            *out = (UINT8) *in;
+            *out = (UINT8) v;
     }
 }
 
@@ -661,10 +753,13 @@ static void
 f2i(UINT8* out_, const UINT8* in_, int xsize)
 {
     int x;
-    FLOAT32* in = (FLOAT32*) in_;
-    INT32* out = (INT32*) out_;
-    for (x = 0; x < xsize; x++)
-        *out++ = (INT32) *in++;
+    for (x = 0; x < xsize; x++, in_ += 4, out_ += 4) {
+        FLOAT32 f;
+        INT32 i;
+        memcpy(&f, in_, sizeof(f));
+        i = f;
+        memcpy(out_, &i, sizeof(i));
+    }
 }
 
 /* ----------------- */
@@ -723,9 +818,10 @@ static void
 I_I16L(UINT8* out, const UINT8* in_, int xsize)
 {
     int x, v;
-    INT32* in = (INT32*) in_;
-    for (x = 0; x < xsize; x++, in++) {
-        v = CLIP16(*in);
+    for (x = 0; x < xsize; x++, in_ += 4) {
+        INT32 i;
+        memcpy(&i, in_, sizeof(i));
+        v = CLIP16(i);
         *out++ = (UINT8) v;
         *out++ = (UINT8) (v >> 8);
     }
@@ -735,9 +831,10 @@ static void
 I_I16B(UINT8* out, const UINT8* in_, int xsize)
 {
     int x, v;
-    INT32* in = (INT32*) in_;
-    for (x = 0; x < xsize; x++, in++) {
-        v = CLIP16(*in);
+    for (x = 0; x < xsize; x++, in_ += 4) {
+        INT32 i;
+        memcpy(&i, in_, sizeof(i));
+        v = CLIP16(i);
         *out++ = (UINT8) (v >> 8);
         *out++ = (UINT8) v;
     }
@@ -748,9 +845,10 @@ static void
 I16L_I(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    INT32* out = (INT32*) out_;
-    for (x = 0; x < xsize; x++, in += 2)
-        *out++ = in[0] + ((int) in[1] << 8);
+    for (x = 0; x < xsize; x++, in += 2, out_ += 4) {
+        INT32 v = in[0] + ((int) in[1] << 8);
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 
@@ -758,18 +856,20 @@ static void
 I16B_I(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    INT32* out = (INT32*) out_;
-    for (x = 0; x < xsize; x++, in += 2)
-        *out++ = in[1] + ((int) in[0] << 8);
+    for (x = 0; x < xsize; x++, in += 2, out_ += 4) {
+        INT32 v = in[1] + ((int) in[0] << 8);
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
 I16L_F(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    FLOAT32* out = (FLOAT32*) out_;
-    for (x = 0; x < xsize; x++, in += 2)
-        *out++ = (FLOAT32) (in[0] + ((int) in[1] << 8));
+    for (x = 0; x < xsize; x++, in += 2, out_ += 4) {
+        FLOAT32 v = in[0] + ((int) in[1] << 8);
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 
@@ -777,9 +877,10 @@ static void
 I16B_F(UINT8* out_, const UINT8* in, int xsize)
 {
     int x;
-    FLOAT32* out = (FLOAT32*) out_;
-    for (x = 0; x < xsize; x++, in += 2)
-        *out++ = (FLOAT32) (in[1] + ((int) in[0] << 8));
+    for (x = 0; x < xsize; x++, in += 2, out_ += 4) {
+        FLOAT32 v = in[1] + ((int) in[0] << 8);
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
@@ -838,6 +939,7 @@ static struct {
     { "1", "RGBX", bit2rgb },
     { "1", "CMYK", bit2cmyk },
     { "1", "YCbCr", bit2ycbcr },
+    { "1", "HSV", bit2hsv },
 
     { "L", "1", l2bit },
     { "L", "LA", l2la },
@@ -848,6 +950,7 @@ static struct {
     { "L", "RGBX", l2rgb },
     { "L", "CMYK", l2cmyk },
     { "L", "YCbCr", l2ycbcr },
+    { "L", "HSV", l2hsv },
 
     { "LA", "L", la2l },
     { "LA", "La", lA2la },
@@ -856,6 +959,7 @@ static struct {
     { "LA", "RGBX", la2rgb },
     { "LA", "CMYK", la2cmyk },
     { "LA", "YCbCr", la2ycbcr },
+    { "LA", "HSV", la2hsv },
 
     { "La", "LA", la2lA },
 
@@ -864,6 +968,7 @@ static struct {
     { "I", "RGB", i2rgb },
     { "I", "RGBA", i2rgb },
     { "I", "RGBX", i2rgb },
+    { "I", "HSV", i2hsv },
 
     { "F", "L", f2l },
     { "F", "I", f2i },
@@ -892,6 +997,7 @@ static struct {
     { "RGBA", "RGBX", rgb2rgba },
     { "RGBA", "CMYK", rgb2cmyk },
     { "RGBA", "YCbCr", ImagingConvertRGB2YCbCr },
+    { "RGBA", "HSV", rgb2hsv },
 
     { "RGBa", "RGBA", rgba2rgbA },
 
@@ -903,10 +1009,12 @@ static struct {
     { "RGBX", "RGB", rgba2rgb },
     { "RGBX", "CMYK", rgb2cmyk },
     { "RGBX", "YCbCr", ImagingConvertRGB2YCbCr },
+    { "RGBX", "HSV", rgb2hsv },
 
     { "CMYK", "RGB",  cmyk2rgb },
     { "CMYK", "RGBA", cmyk2rgb },
     { "CMYK", "RGBX", cmyk2rgb },
+    { "CMYK", "HSV", cmyk2hsv },
 
     { "YCbCr", "L", ycbcr2l },
     { "YCbCr", "LA", ycbcr2la },
@@ -1018,9 +1126,10 @@ static void
 p2i(UINT8* out_, const UINT8* in, int xsize, const UINT8* palette)
 {
     int x;
-    INT32* out = (INT32*) out_;
-    for (x = 0; x < xsize; x++)
-        *out++ = L(&palette[in[x]*4]) / 1000;
+    for (x = 0; x < xsize; x++, out_ += 4) {
+        INT32 v = L(&palette[in[x]*4]) / 1000;
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
@@ -1036,9 +1145,10 @@ static void
 p2f(UINT8* out_, const UINT8* in, int xsize, const UINT8* palette)
 {
     int x;
-    FLOAT32* out = (FLOAT32*) out_;
-    for (x = 0; x < xsize; x++)
-        *out++ = (float) L(&palette[in[x]*4]) / 1000.0F;
+    for (x = 0; x < xsize; x++, out_ += 4) {
+        FLOAT32 v = L(&palette[in[x]*4]) / 1000.0F;
+        memcpy(out_, &v, sizeof(v));
+    }
 }
 
 static void
@@ -1073,6 +1183,28 @@ pa2rgb(UINT8* out, const UINT8* in, int xsize, const UINT8* palette)
         *out++ = rgb[1];
         *out++ = rgb[2];
         *out++ = 255;
+    }
+}
+
+static void
+p2hsv(UINT8* out, const UINT8* in, int xsize, const UINT8* palette)
+{
+    int x;
+    for (x = 0; x < xsize; x++, out += 4) {
+        const UINT8* rgb = &palette[*in++ * 4];
+        rgb2hsv_row(out, rgb);
+        out[3] = 255;
+    }
+}
+
+static void
+pa2hsv(UINT8* out, const UINT8* in, int xsize, const UINT8* palette)
+{
+    int x;
+    for (x = 0; x < xsize; x++, in += 4, out += 4) {
+        const UINT8* rgb = &palette[in[0] * 4];
+        rgb2hsv_row(out, rgb);
+        out[3] = 255;
     }
 }
 
@@ -1167,6 +1299,8 @@ frompalette(Imaging imOut, Imaging imIn, const char *mode)
         convert = alpha ? pa2cmyk : p2cmyk;
     else if (strcmp(mode, "YCbCr") == 0)
         convert = alpha ? pa2ycbcr : p2ycbcr;
+    else if (strcmp(mode, "HSV") == 0)
+        convert = alpha ? pa2hsv : p2hsv;
     else
         return (Imaging) ImagingError_ValueError("conversion not supported");
 

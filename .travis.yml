@@ -16,9 +16,9 @@ matrix:
     - python: "3.6"
       name: "Lint"
       env: LINT="true"
-    - python: "pypy2.7-6.0"
+    - python: "pypy"
       name: "PyPy2 Xenial"
-    - python: "pypy3.5-6.0"
+    - python: "pypy3"
       name: "PyPy3 Xenial"
     - python: '3.7'
       name: "3.7 Xenial"
@@ -39,13 +39,14 @@ matrix:
     - env: DOCKER="arch" DOCKER_TAG="master" # contains PyQt5
     - env: DOCKER="ubuntu-16.04-xenial-amd64" DOCKER_TAG="master"
     - env: DOCKER="ubuntu-18.04-bionic-amd64" DOCKER_TAG="master"
-    - env: DOCKER="debian-stretch-x86" DOCKER_TAG="master"
+    - env: DOCKER="debian-9-stretch-x86" DOCKER_TAG="master"
+    - env: DOCKER="debian-10-buster-x86" DOCKER_TAG="master"
     - env: DOCKER="centos-6-amd64" DOCKER_TAG="master"
     - env: DOCKER="centos-7-amd64" DOCKER_TAG="master"
     - env: DOCKER="amazon-1-amd64" DOCKER_TAG="master"
     - env: DOCKER="amazon-2-amd64" DOCKER_TAG="master"
-    - env: DOCKER="fedora-28-amd64" DOCKER_TAG="master"
     - env: DOCKER="fedora-29-amd64" DOCKER_TAG="master"
+    - env: DOCKER="fedora-30-amd64" DOCKER_TAG="master"
 
 services:
   - docker

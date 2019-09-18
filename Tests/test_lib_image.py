@@ -1,10 +1,9 @@
-from .helper import unittest, PillowTestCase
-
 from PIL import Image
+
+from .helper import PillowTestCase, unittest
 
 
 class TestLibImage(PillowTestCase):
-
     def test_setmode(self):
 
         im = Image.new("L", (1, 1), 255)
@@ -33,5 +32,5 @@ class TestLibImage(PillowTestCase):
         self.assertRaises(ValueError, im.im.setmode, "RGBABCDE")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

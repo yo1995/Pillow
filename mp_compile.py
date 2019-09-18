@@ -4,13 +4,14 @@
 # own newly-added support for parallel builds.
 
 from __future__ import print_function
-from multiprocessing import Pool, cpu_count
-from distutils.ccompiler import CCompiler
+
 import os
 import sys
+from distutils.ccompiler import CCompiler
+from multiprocessing import Pool, cpu_count
 
 try:
-    MAX_PROCS = int(os.environ.get('MAX_CONCURRENCY', min(4, cpu_count())))
+    MAX_PROCS = int(os.environ.get("MAX_CONCURRENCY", min(4, cpu_count())))
 except NotImplementedError:
     MAX_PROCS = None
 
@@ -26,9 +27,17 @@ def _mp_compile_one(tp):
     return
 
 
-def _mp_compile(self, sources, output_dir=None, macros=None,
-                include_dirs=None, debug=0, extra_preargs=None,
-                extra_postargs=None, depends=None):
+def _mp_compile(
+    self,
+    sources,
+    output_dir=None,
+    macros=None,
+    include_dirs=None,
+    debug=0,
+    extra_preargs=None,
+    extra_postargs=None,
+    depends=None,
+):
     """Compile one or more source files.
 
     see distutils.ccompiler.CCompiler.compile for comments.
@@ -37,7 +46,8 @@ def _mp_compile(self, sources, output_dir=None, macros=None,
     # entirely or implement _compile().
 
     macros, objects, extra_postargs, pp_opts, build = self._setup_compile(
-        output_dir, macros, include_dirs, sources, depends, extra_postargs)
+        output_dir, macros, include_dirs, sources, depends, extra_postargs
+    )
     cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
 
     pool = Pool(MAX_PROCS)
@@ -45,8 +55,7 @@ def _mp_compile(self, sources, output_dir=None, macros=None,
         print("Building using %d processes" % pool._processes)
     except Exception:
         pass
-    arr = [(self, obj, build, cc_args, extra_postargs, pp_opts)
-           for obj in objects]
+    arr = [(self, obj, build, cc_args, extra_postargs, pp_opts) for obj in objects]
     pool.map_async(_mp_compile_one, arr)
     pool.close()
     pool.join()
@@ -56,8 +65,8 @@ def _mp_compile(self, sources, output_dir=None, macros=None,
 
 def install():
 
-    fl_win = sys.platform.startswith('win')
-    fl_cygwin = sys.platform.startswith('cygwin')
+    fl_win = sys.platform.startswith("win")
+    fl_cygwin = sys.platform.startswith("cygwin")
 
     if fl_win or fl_cygwin:
         # Windows barfs on multiprocessing installs
@@ -72,11 +81,11 @@ def install():
             Pool(2)
             CCompiler.compile = _mp_compile
         except Exception as msg:
-            print("Exception installing mp_compile, proceeding without:"
-                  "%s" % msg)
+            print("Exception installing mp_compile, proceeding without: %s" % msg)
     else:
-        print("Single threaded build, not installing mp_compile:"
-              "%s processes" % MAX_PROCS)
+        print(
+            "Single threaded build, not installing mp_compile: %s processes" % MAX_PROCS
+        )
 
 
 # We monkeypatch Python 2.7

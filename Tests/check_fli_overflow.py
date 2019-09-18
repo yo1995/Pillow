@@ -1,5 +1,6 @@
-from .helper import unittest, PillowTestCase
 from PIL import Image
+
+from .helper import PillowTestCase, unittest
 
 TEST_FILE = "Tests/images/fli_overflow.fli"
 
@@ -12,5 +13,5 @@ class TestFliOverflow(PillowTestCase):
         im.load()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

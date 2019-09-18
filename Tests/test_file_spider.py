@@ -1,16 +1,13 @@
-from .helper import PillowTestCase, hopper
-
-from PIL import Image
-from PIL import ImageSequence
-from PIL import SpiderImagePlugin
-
 import tempfile
+
+from PIL import Image, ImageSequence, SpiderImagePlugin
+
+from .helper import PillowTestCase, hopper
 
 TEST_FILE = "Tests/images/hopper.spider"
 
 
 class TestImageSpider(PillowTestCase):
-
     def test_sanity(self):
         im = Image.open(TEST_FILE)
         im.load()
@@ -22,11 +19,12 @@ class TestImageSpider(PillowTestCase):
         def open():
             im = Image.open(TEST_FILE)
             im.load()
+
         self.assert_warning(None, open)
 
     def test_save(self):
         # Arrange
-        temp = self.tempfile('temp.spider')
+        temp = self.tempfile("temp.spider")
         im = hopper()
 
         # Act

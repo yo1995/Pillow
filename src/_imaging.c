@@ -86,6 +86,9 @@
 
 #include "py3.h"
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 /* Configuration stuff. Feel free to undef things you don't need. */
 #define WITH_IMAGECHOPS /* ImageChops support */
 #define WITH_IMAGEDRAW /* ImageDraw support */
@@ -379,7 +382,8 @@ getlist(PyObject* arg, Py_ssize_t* length, const char* wrong_length, int type)
     Py_ssize_t i, n;
     int itemp;
     double dtemp;
-    void* list;
+    FLOAT32 ftemp;
+    UINT8* list;
     PyObject* seq;
     PyObject* op;
 
@@ -413,19 +417,19 @@ getlist(PyObject* arg, Py_ssize_t* length, const char* wrong_length, int type)
         switch (type) {
         case TYPE_UINT8:
             itemp = PyInt_AsLong(op);
-            ((UINT8*)list)[i] = CLIP8(itemp);
+            list[i] = CLIP8(itemp);
             break;
         case TYPE_INT32:
             itemp = PyInt_AsLong(op);
-            ((INT32*)list)[i] = itemp;
+            memcpy(list + i * sizeof(INT32), &itemp, sizeof(itemp));
             break;
         case TYPE_FLOAT32:
-            dtemp = PyFloat_AsDouble(op);
-            ((FLOAT32*)list)[i] = (FLOAT32) dtemp;
+            ftemp = (FLOAT32)PyFloat_AsDouble(op);
+            memcpy(list + i * sizeof(ftemp), &ftemp, sizeof(ftemp));
             break;
         case TYPE_DOUBLE:
             dtemp = PyFloat_AsDouble(op);
-            ((double*)list)[i] = (double) dtemp;
+            memcpy(list + i * sizeof(dtemp), &dtemp, sizeof(dtemp));
             break;
         }
     }
@@ -529,6 +533,8 @@ getink(PyObject* color, Imaging im, char* ink)
        to return it into a 32 bit C long
     */
     PY_LONG_LONG r = 0;
+    FLOAT32 ftmp;
+    INT32 itmp;
 
     /* fill ink buffer (four bytes) with something that can
        be cast to either UINT8 or INT32 */
@@ -594,14 +600,16 @@ getink(PyObject* color, Imaging im, char* ink)
         /* signed integer */
         if (rIsInt != 1)
             return NULL;
-        *(INT32*) ink = r;
+        itmp = r;
+        memcpy(ink, &itmp, sizeof(itmp));
         return ink;
     case IMAGING_TYPE_FLOAT32:
         /* floating point */
         f = PyFloat_AsDouble(color);
         if (f == -1.0 && PyErr_Occurred())
             return NULL;
-        *(FLOAT32*) ink = (FLOAT32) f;
+        ftmp = f;
+        memcpy(ink, &ftmp, sizeof(ftmp));
         return ink;
     case IMAGING_TYPE_SPECIAL:
         if (strncmp(im->mode, "I;16", 4) == 0) {
@@ -796,15 +804,19 @@ _prepare_lut_table(PyObject* table, Py_ssize_t table_size)
     }
 
     for (i = 0; i < table_size; i++) {
+        FLOAT16 htmp;
+        double dtmp;
         switch (data_type) {
             case TYPE_FLOAT16:
-                item = float16tofloat32(((FLOAT16*) table_data)[i]);
+                memcpy(&htmp, ((char*) table_data) + i * sizeof(htmp), sizeof(htmp));
+                item = float16tofloat32(htmp);
                 break;
             case TYPE_FLOAT32:
-                item = ((FLOAT32*) table_data)[i];
+                memcpy(&item, ((char*) table_data) + i * sizeof(FLOAT32), sizeof(FLOAT32));
                 break;
             case TYPE_DOUBLE:
-                item = ((double*) table_data)[i];
+                memcpy(&dtmp, ((char*) table_data) + i * sizeof(dtmp), sizeof(dtmp));
+                item = (FLOAT32) dtmp;
                 break;
         }
         /* Max value for INT16 */
@@ -1176,59 +1188,68 @@ _getpixel(ImagingObject* self, PyObject* args)
     return getpixel(self->image, self->access, x, y);
 }
 
+union hist_extrema {
+    UINT8 u[2];
+    INT32 i[2];
+    FLOAT32 f[2];
+};
+
+static union hist_extrema*
+parse_histogram_extremap(ImagingObject* self, PyObject* extremap,
+                         union hist_extrema* ep)
+{
+    int i0, i1;
+    double f0, f1;
+
+    if (extremap) {
+        switch (self->image->type) {
+        case IMAGING_TYPE_UINT8:
+            if (!PyArg_ParseTuple(extremap, "ii", &i0, &i1))
+                return NULL;
+            ep->u[0] = CLIP8(i0);
+            ep->u[1] = CLIP8(i1);
+            break;
+        case IMAGING_TYPE_INT32:
+            if (!PyArg_ParseTuple(extremap, "ii", &i0, &i1))
+                return NULL;
+            ep->i[0] = i0;
+            ep->i[1] = i1;
+            break;
+        case IMAGING_TYPE_FLOAT32:
+            if (!PyArg_ParseTuple(extremap, "dd", &f0, &f1))
+                return NULL;
+            ep->f[0] = (FLOAT32) f0;
+            ep->f[1] = (FLOAT32) f1;
+            break;
+        default:
+            return NULL;
+        }
+    } else {
+        return NULL;
+    }
+    return ep;
+}
+
 static PyObject*
 _histogram(ImagingObject* self, PyObject* args)
 {
     ImagingHistogram h;
     PyObject* list;
     int i;
-    union {
-        UINT8 u[2];
-        INT32 i[2];
-        FLOAT32 f[2];
-    } extrema;
-    void* ep;
-    int i0, i1;
-    double f0, f1;
+    union hist_extrema extrema;
+    union hist_extrema* ep;
 
     PyObject* extremap = NULL;
     ImagingObject* maskp = NULL;
     if (!PyArg_ParseTuple(args, "|OO!", &extremap, &Imaging_Type, &maskp))
-    return NULL;
+        return NULL;
 
-    if (extremap) {
-        ep = &extrema;
-        switch (self->image->type) {
-        case IMAGING_TYPE_UINT8:
-            if (!PyArg_ParseTuple(extremap, "ii", &i0, &i1))
-                return NULL;
-            /* FIXME: clip */
-            extrema.u[0] = i0;
-            extrema.u[1] = i1;
-            break;
-        case IMAGING_TYPE_INT32:
-            if (!PyArg_ParseTuple(extremap, "ii", &i0, &i1))
-                return NULL;
-            extrema.i[0] = i0;
-            extrema.i[1] = i1;
-            break;
-        case IMAGING_TYPE_FLOAT32:
-            if (!PyArg_ParseTuple(extremap, "dd", &f0, &f1))
-                return NULL;
-            extrema.f[0] = (FLOAT32) f0;
-            extrema.f[1] = (FLOAT32) f1;
-            break;
-        default:
-            ep = NULL;
-            break;
-        }
-    } else
-        ep = NULL;
-
+    /* Using a var to avoid allocations. */
+    ep = parse_histogram_extremap(self, extremap, &extrema);
     h = ImagingGetHistogram(self->image, (maskp) ? maskp->image : NULL, ep);
 
     if (!h)
-    return NULL;
+        return NULL;
 
     /* Build an integer list containing the histogram */
     list = PyList_New(h->bands * 256);
@@ -1243,9 +1264,57 @@ _histogram(ImagingObject* self, PyObject* args)
         PyList_SetItem(list, i, item);
     }
 
+    /* Destroy the histogram structure */
     ImagingHistogramDelete(h);
 
     return list;
+}
+
+static PyObject*
+_entropy(ImagingObject* self, PyObject* args)
+{
+    ImagingHistogram h;
+    int idx, length;
+    long sum;
+    double entropy, fsum, p;
+    union hist_extrema extrema;
+    union hist_extrema* ep;
+
+    PyObject* extremap = NULL;
+    ImagingObject* maskp = NULL;
+    if (!PyArg_ParseTuple(args, "|OO!", &extremap, &Imaging_Type, &maskp))
+        return NULL;
+
+    /* Using a local var to avoid allocations. */
+    ep = parse_histogram_extremap(self, extremap, &extrema);
+    h = ImagingGetHistogram(self->image, (maskp) ? maskp->image : NULL, ep);
+
+    if (!h)
+        return NULL;
+
+    /* Calculate the histogram entropy */
+    /* First, sum the histogram data */
+    length = h->bands * 256;
+    sum = 0;
+    for (idx = 0; idx < length; idx++) {
+        sum += h->histogram[idx];
+    }
+
+    /* Next, normalize the histogram data, */
+    /* using the histogram sum value */
+    fsum = (double)sum;
+    entropy = 0.0;
+    for (idx = 0; idx < length; idx++) {
+        p = (double)h->histogram[idx] / fsum;
+        if (p != 0.0) {
+            entropy += p * log(p) * M_LOG2E;
+        }
+    }
+
+    /* Destroy the histogram structure */
+    ImagingHistogramDelete(h);
+
+    return PyFloat_FromDouble(-entropy);
 }
 
 #ifdef WITH_MODEFILTER
@@ -1588,7 +1657,7 @@ _putpalette(ImagingObject* self, PyObject* args)
 
     ImagingPaletteDelete(self->image->palette);
 
-    strcpy(self->image->mode, "P");
+    strcpy(self->image->mode, strlen(self->image->mode) == 2 ? "PA" : "P");
 
     self->image->palette = ImagingPaletteNew("RGB");
 
@@ -2573,8 +2642,7 @@ _draw_ink(ImagingDrawObject* self, PyObject* args)
 {
     INT32 ink = 0;
     PyObject* color;
-    char* mode = NULL; /* not used in this release */
-    if (!PyArg_ParseTuple(args, "O|s", &color, &mode))
+    if (!PyArg_ParseTuple(args, "O", &color))
         return NULL;
 
     if (!getink(color, self->image->image, (char*) &ink))
@@ -3193,6 +3261,7 @@ static struct PyMethodDef methods[] = {
     {"expand", (PyCFunction)_expand_image, 1},
     {"filter", (PyCFunction)_filter, 1},
     {"histogram", (PyCFunction)_histogram, 1},
+    {"entropy", (PyCFunction)_entropy, 1},
 #ifdef WITH_MODEFILTER
     {"modefilter", (PyCFunction)_modefilter, 1},
 #endif
@@ -3625,6 +3694,12 @@ _set_blocks_max(PyObject* self, PyObject* args)
             "blocks_max should be greater than 0");
         return NULL;
     }
+    else if ( blocks_max > SIZE_MAX/sizeof(ImagingDefaultArena.blocks_pool[0])) {
+        PyErr_SetString(PyExc_ValueError,
+            "blocks_max is too large");
+        return NULL;
+    }
+
 
     if ( ! ImagingMemorySetBlocksMax(&ImagingDefaultArena, blocks_max)) {
         ImagingError_MemoryError();
@@ -3912,4 +3987,3 @@ init_imaging(void)
     setup_module(m);
 }
 #endif
-

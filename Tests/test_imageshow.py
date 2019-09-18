@@ -1,11 +1,9 @@
-from .helper import PillowTestCase, hopper
+from PIL import Image, ImageShow
 
-from PIL import Image
-from PIL import ImageShow
+from .helper import PillowTestCase, hopper
 
 
 class TestImageShow(PillowTestCase):
-
     def test_sanity(self):
         dir(Image)
         dir(ImageShow)
@@ -18,18 +16,20 @@ class TestImageShow(PillowTestCase):
         ImageShow._viewers.pop()
 
     def test_show(self):
-        class TestViewer:
+        class TestViewer(ImageShow.Viewer):
             methodCalled = False
 
-            def show(self, image, title=None, **options):
+            def show_image(self, image, **options):
                 self.methodCalled = True
                 return True
+
         viewer = TestViewer()
         ImageShow.register(viewer, -1)
 
-        im = hopper()
-        self.assertTrue(ImageShow.show(im))
-        self.assertTrue(viewer.methodCalled)
+        for mode in ("1", "I;16", "LA", "RGB", "RGBA"):
+            im = hopper(mode)
+            self.assertTrue(ImageShow.show(im))
+            self.assertTrue(viewer.methodCalled)
 
         # Restore original state
         ImageShow._viewers.pop(0)
@@ -43,4 +43,4 @@ class TestImageShow(PillowTestCase):
 
     def test_viewers(self):
         for viewer in ImageShow._viewers:
-            viewer.get_command('test.jpg')
+            viewer.get_command("test.jpg")

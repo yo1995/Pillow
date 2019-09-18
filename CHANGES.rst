@@ -2,6 +2,185 @@
 Changelog (Pillow)
 ==================
 
+6.2.0 (unreleased)
+------------------
+
+- This is the last Pillow release to support Python 2.7 #3642
+
+- Lazily use ImageFileDirectory_v1 values from Exif #4031
+  [radarhere]
+
+- Improved HSV conversion #4004
+  [radarhere]
+
+- Added text stroking #3978
+  [radarhere, hugovk]
+
+- No more deprecated bdist_wininst .exe installers #4029
+  [hugovk]
+
+- Do not allow floodfill to extend into negative coordinates #4017
+  [radarhere]
+
+- Fixed arc drawing bug for a non-whole number of degrees #4014
+  [radarhere]
+
+- Fix bug when merging identical images to GIF with a list of durations #4003
+  [djy0, radarhere]
+
+- Fix bug in TIFF loading of BufferedReader #3998
+  [chadawagner]
+
+- Added fallback for finding ld on MinGW Cygwin #4019
+  [radarhere]
+
+- Remove indirect dependencies from requirements.txt #3976
+  [hugovk]
+
+- Depends: Update libwebp to 1.0.3 #3983, libimagequant to 2.12.5 #3993, freetype to 2.10.1 #3991
+  [radarhere]
+
+- Change overflow check to use PY_SSIZE_T_MAX #3964
+  [radarhere]
+
+- Report reason for pytest skips #3942
+  [hugovk]
+
+6.1.0 (2019-07-01)
+------------------
+
+- Deprecate Image.__del__ #3929
+  [jdufresne]
+
+- Tiff: Add support for JPEG quality #3886
+  [olt]
+
+- Respect the PKG_CONFIG environment variable when building #3928
+  [chewi]
+
+- Use explicit memcpy() to avoid unaligned memory accesses #3225
+  [DerDakon]
+
+- Improve encoding of TIFF tags #3861
+  [olt]
+
+- Update Py_UNICODE to Py_UCS4 #3780
+  [nulano]
+
+- Consider I;16 pixel size when drawing #3899
+  [radarhere]
+
+- Add TIFFTAG_SAMPLEFORMAT to blocklist #3926
+  [cgohlke, radarhere]
+
+- Create GIF deltas from background colour of GIF frames if disposal mode is 2 #3708
+  [sircinnamon, radarhere]
+
+- Added ImageSequence all_frames #3778
+  [radarhere]
+
+- Use unsigned int to store TIFF IFD offsets #3923
+  [cgohlke]
+
+- Include CPPFLAGS when searching for libraries #3819
+  [jefferyto]
+
+- Updated TIFF tile descriptors to match current decoding functionality #3795
+  [dmnisson]
+
+- Added an ``image.entropy()`` method (second revision) #3608
+  [fish2000]
+
+- Pass the correct types to PyArg_ParseTuple #3880
+  [QuLogic]
+
+- Fixed crash when loading non-font bytes #3912
+  [radarhere]
+
+- Fix SPARC memory alignment issues in Pack/Unpack functions #3858
+  [kulikjak]
+
+- Added CMYK;16B and CMYK;16N unpackers #3913
+  [radarhere]
+
+- Fixed bugs in calculating text size #3864
+  [radarhere]
+
+- Add __main__.py to output basic format and support information #3870
+  [jdufresne]
+
+- Added variation font support #3802
+  [radarhere]
+
+- Do not down-convert if image is LA when showing with PNG format #3869
+  [radarhere]
+
+- Improve handling of PSD frames #3759
+  [radarhere]
+
+- Improved ICO and ICNS loading #3897
+  [radarhere]
+
+- Changed Preview application path so that it is no longer static #3896
+  [radarhere]
+
+- Corrected ttb text positioning #3856
+  [radarhere]
+
+- Handle unexpected ICO image sizes #3836
+  [radarhere]
+
+- Fixed bits value for RGB;16N unpackers #3837
+  [kkopachev]
+
+- Travis CI: Add Fedora 30, remove Fedora 28 #3821
+  [hugovk]
+
+- Added reading of CMYK;16L TIFF images #3817
+  [radarhere]
+
+- Fixed dimensions of 1-bit PDFs #3827
+  [radarhere]
+
+- Fixed opening mmap image through Path on Windows #3825
+  [radarhere]
+
+- Fixed ImageDraw arc gaps #3824
+  [radarhere]
+
+- Expand GIF to include frames with extents outside the image size #3822
+  [radarhere]
+
+- Fixed ImageTk getimage #3814
+  [radarhere]
+
+- Fixed bug in decoding large images #3791
+  [radarhere]
+
+- Fixed reading APP13 marker without Photoshop data #3771
+  [radarhere]
+
+- Added option to include layered windows in ImageGrab.grab on Windows #3808
+  [radarhere]
+
+- Detect libimagequant when installed by pacman on MingW #3812
+  [radarhere]
+
+- Fixed raqm layout bug #3787
+  [radarhere]
+
+- Fixed loading font with non-Unicode path on Windows #3785
+  [radarhere]
+
+- Travis CI: Upgrade PyPy from 6.0.0 to 7.1.1 #3783
+  [hugovk, johnthagen]
+
+- Depends: Updated openjpeg to 2.3.1 #3794, raqm to 0.7.0 #3877, libimagequant to 2.12.3 #3889
+  [radarhere]
+
+- Fix numpy bool bug #3790
+  [radarhere]
+
 6.0.0 (2019-04-01)
 ------------------
 
@@ -545,7 +724,7 @@ Changelog (Pillow)
 - Enable background colour parameter on rotate #3057
   [storesource]
 
-- Remove unnecessary `#if 1` directive #3072
+- Remove unnecessary ``#if 1`` directive #3072
   [jdufresne]
 
 - Remove unused Python class, Path #3070
@@ -1082,7 +1261,7 @@ Changelog (Pillow)
 - Add decompression bomb check to Image.crop #2410
   [wiredfool]
 
-- ImageFile: Ensure that the `err_code` variable is initialized in case of exception. #2363
+- ImageFile: Ensure that the ``err_code`` variable is initialized in case of exception. #2363
   [alexkiro]
 
 - Tiff: Support append_images for saving multipage TIFFs #2406
@@ -1319,7 +1498,7 @@ Changelog (Pillow)
 - Removed PIL 1.0 era TK readme that concerns Windows 95/NT #2360
   [wiredfool]
 
-- Prevent `nose -v` printing docstrings #2369
+- Prevent ``nose -v`` printing docstrings #2369
   [hugovk]
 
 - Replaced absolute PIL imports with relative imports #2349
@@ -1408,7 +1587,7 @@ Changelog (Pillow)
 - Test: Faster assert_image_similar #2279
   [homm]
 
-- Removed depreciated internal "stretch" method #2276
+- Removed deprecated internal "stretch" method #2276
   [homm]
 
 - Removed the handles_eof flag in decode.c #2223
@@ -1764,7 +1943,7 @@ Changelog (Pillow)
 - Changed depends/install_*.sh urls to point to github pillow-depends repo #1983
   [wiredfool]
 
-- Allow ICC profile from `encoderinfo` while saving PNGs #1909
+- Allow ICC profile from ``encoderinfo`` while saving PNGs #1909
   [homm]
 
 - Fix integer overflow on ILP32 systems (32-bit Linux). #1975
@@ -2207,7 +2386,7 @@ Changelog (Pillow)
 - Added PDF multipage saving #1445
   [radarhere]
 
-- Removed deprecated code, Image.tostring, Image.fromstring, Image.offset, ImageDraw.setink, ImageDraw.setfill, ImageFileIO, ImageFont.FreeTypeFont and ImageFont.truetype `file` kwarg, ImagePalette private _make functions, ImageWin.fromstring and ImageWin.tostring #1343
+- Removed deprecated code, Image.tostring, Image.fromstring, Image.offset, ImageDraw.setink, ImageDraw.setfill, ImageFileIO, ImageFont.FreeTypeFont and ImageFont.truetype ``file`` kwarg, ImagePalette private _make functions, ImageWin.fromstring and ImageWin.tostring #1343
   [radarhere]
 
 - Load more broken images #1428
@@ -2699,7 +2878,7 @@ Changelog (Pillow)
 - Doc cleanup
   [wiredfool]
 
-- Fix `ImageStat` docs #796
+- Fix ``ImageStat`` docs #796
   [akx]
 
 - Added docs for ExifTags #794
@@ -3136,7 +3315,7 @@ Changelog (Pillow)
 - Add RGBA support to ImageColor #309
   [yoavweiss]
 
-- Test for `str`, not `"utf-8"` #306 (fixes #304)
+- Test for ``str``, not ``"utf-8"`` #306 (fixes #304)
   [mjpieters]
 
 - Fix missing import os in _util.py #303
@@ -3242,7 +3421,7 @@ Changelog (Pillow)
 
 - Partial work to add a wrapper for WebPGetFeatures to correctly support #220 (fixes #204)
 
-- Significant performance improvement of `alpha_composite` function #156
+- Significant performance improvement of ``alpha_composite`` function #156
   [homm]
 
 - Support explicitly disabling features via --disable-* options #240

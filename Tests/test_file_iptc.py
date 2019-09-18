@@ -1,12 +1,11 @@
-from .helper import PillowTestCase, hopper
-
 from PIL import Image, IptcImagePlugin
+
+from .helper import PillowTestCase, hopper
 
 TEST_FILE = "Tests/images/iptc.jpg"
 
 
 class TestFileIptc(PillowTestCase):
-
     def test_getiptcinfo_jpg_none(self):
         # Arrange
         im = hopper()
@@ -58,6 +57,7 @@ class TestFileIptc(PillowTestCase):
         except ImportError:
             from io import StringIO
         import sys
+
         old_stdout = sys.stdout
         sys.stdout = mystdout = StringIO()
 
